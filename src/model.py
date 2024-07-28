@@ -147,10 +147,10 @@ def main():
             train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
 
         # 被験者で分割しない場合
-        # _, tr_pred, te_pred = get_model_prediction(train, test, target)
-        # train[target+'_pred'] = tr_pred
-        # test[target+'_pred'] = te_pred
-    
+        # mod = get_model_prediction(train, test, target)
+        # test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
+        # train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
+
     rmse = rmse_3d(train)
     print('\nrmse :', rmse)
 
