@@ -37,7 +37,7 @@ def lgb_train(tr_x, tr_y, va_x, va_y):
         num_boost_round=100,
         valid_sets=va_lgb,
         valid_names=['train', 'valid'],
-        callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=False)]
+        callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=True)]
     )
 
     return model
@@ -92,32 +92,47 @@ def get_tr_va_index(train):
 
     return tr_index, va_index, va_es_index
 
+def get_model_prediction(train, test, target):
+    '''
+    train, test, 予測対象を投げると予測値を追加したtestを返す'''
+    x = train.drop(columns=config.drop_list)
+    y = train[target]
+
+    # trainとvalidの分割
+    tr_index, va_index, va_es_index = get_tr_va_index(train)
+    tr_x, tr_y = x[tr_index], y[tr_index]
+    va_x, va_y = x[va_index], y[va_index]
+    va_es_x, va_es_y = x[va_es_index], y[va_es_index]
+
+    # 学習と予測
+    model = lgb_train(tr_x, tr_y, va_es_x, va_es_y)
+    tr_pred = lgb_predict(model, tr_x)
+    va_es_pred = lgb_predict(model, va_es_x)
+    va_pred = lgb_predict(model, va_x)
+
+    print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred)
+    test[target] = lgb_predict(model, test.drop(columns=config.drop_list, errors='ignore'))
+
+    return test[target]
 
 def main():
     train = pickle.load(open(config.train_pkl_path, 'rb'))
     test = pickle.load(open(config.test_pkl_path, 'rb'))
 
-    # x, y, zごとにモデル作成と予測
+    # x, y, zごとのモデル作成と予測
     for target in config.target_name:
         print('\ntarget :', target)
 
-        x = train.drop(columns=config.drop_list)
-        y = train[target]
+        # 被験者ごとのモデル作成と予測
+        # for sid in range(4):
+        #     sid = sid + 1
+        #     print('\n被験者id :', sid)
+        #     train_tmp = train.loc[train['sid']==sid].copy()
+        #     test_tmp = test.loc[test['sid']==sid].copy()
+        #     test.loc[train['sid']==sid, target] = get_model_prediction(train_tmp, test_tmp, target)
 
-        # trainとvalidの分割
-        tr_index, va_index, va_es_index = get_tr_va_index(train)
-        tr_x, tr_y = x[tr_index], y[tr_index]
-        va_x, va_y = x[va_index], y[va_index]
-        va_es_x, va_es_y = x[va_es_index], y[va_es_index]
-
-        # 学習と予測
-        model = lgb_train(tr_x, tr_y, va_es_x, va_es_y)
-        tr_pred = lgb_predict(model, tr_x)
-        va_es_pred = lgb_predict(model, va_es_x)
-        va_pred = lgb_predict(model, va_x)
-
-        print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred)
-        test[target] = lgb_predict(model, test.drop(columns=config.drop_list, errors='ignore'))
+        # 被験者で分割しない場合
+        test[target] = get_model_prediction(train, test, target)
 
     i = input('出力しますか(y/n)')=='y'
     if i:
