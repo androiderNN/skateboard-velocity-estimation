@@ -86,14 +86,24 @@ def main():
         x = train.drop(columns=config.drop_list)
         y = train[target]
 
-        tr_index = train['trial']>=100
-        va_index = train['trial']<50
-        va_es_index = [50<=i<100 for i in train['trial'].tolist()]
+        # trainとvalidの分割
+        sid = train['sid'].tolist()
+        trial = train['trial'].tolist()
+        train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrialのidを作成
+        trial_id = np.unique(np.array(train['trial_id']))
+        tr_id, va_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
+        tr_id, va_es_id = train_test_split(tr_id, test_size=0.2, random_state=rand, shuffle=True)
+
+        tr_index = [id in tr_id for id in train['trial_id']]
+        va_index = [id in va_id for id in train['trial_id']]
+        va_es_index = [id in va_es_id for id in train['trial_id']]
+        train.drop(columns='trial_id', inplace=True)
 
         tr_x, tr_y = x[tr_index], y[tr_index]
         va_x, va_y = x[va_index], y[va_index]
         va_es_x, va_es_y = x[va_es_index], y[va_es_index]
 
+        # 学習と予測
         model = lgb_train(tr_x, tr_y, va_es_x, va_es_y)
         tr_pred = lgb_predict(model, tr_x)
         va_es_pred = lgb_predict(model, va_es_x)
