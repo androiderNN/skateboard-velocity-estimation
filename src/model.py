@@ -132,8 +132,8 @@ def main():
     test = pickle.load(open(config.test_pkl_path, 'rb'))
 
     # 予測後の変換
-    # train = processing.convert_y(train)
-    # test = processing.convert_y(test)
+    # train = processing.convert_y(train, True)
+    # test = processing.convert_y(test, True)
 
     # x, y, zごとのモデル作成と予測
     for target in config.target_name:
@@ -156,8 +156,8 @@ def main():
         train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
     # 予測後の変換
-    # train = processing.convert_y(train)
-    # test = processing.convert_y(test)
+    # train = processing.convert_y(train, True)
+    # test = processing.convert_y(test, True)
 
     rmse = rmse_3d(train)
     print('\nrmse :', rmse)
