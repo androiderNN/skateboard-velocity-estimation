@@ -1,8 +1,8 @@
-from scipy import io as sio
-from scipy import signal
-import os
+import os, pickle
 import numpy as np
 import pandas as pd
+from scipy import io as sio
+from scipy import signal
 
 import config
 
@@ -62,8 +62,11 @@ def make_data(raw_data:np.array, istrain:bool):
         df = pd.concat([df, tmp_df])
     
     df.reset_index(inplace=True, drop=True)
-    print(df)
     return df
 
+if __name__ == '__main__':
+    train_df = make_data(train_raw, True)
+    test_df = make_data(test_raw, False)
 
-make_data(train_raw, True)
+    pickle.dump(train_df, open(os.path.join(config.fdir, 'train_df.pkl'), 'wb'))
+    pickle.dump(test_df, open(os.path.join(config.fdir, 'test_df.pkl'), 'wb'))
