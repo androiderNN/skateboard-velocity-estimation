@@ -10,23 +10,9 @@ train_raw = sio.loadmat(config.train_path)
 test_raw = sio.loadmat(config.test_path)
 vel_sample_rate = 30    # 30fps
 
-def extraction(data_myo, isregular, sid):
-    '''
-    1trial単位の筋電位、重心速度、体勢データを入力すると特徴量を作成し返す
-    
-    Parameters
-    ----------
-    data_myo :ndarray
-        (16, 1000)の筋電位データ
-    isregular :bool
-        regularならTrue, goofyならFalse
-    sid :int
-        リーク防止のid用
-    '''
-    data_myo = np.array([signal.resample(dm, vel_sample_rate) for dm in data_myo]).T
-    return data_myo
-
 def convert_y(df, goofy_only:bool):
+    '''
+    データを左右対称に入れ替える関数'''
     if goofy_only:
         df_tmp = df.loc[df['isregular']==0]
     else:
@@ -57,7 +43,7 @@ def process(data_skater:np.array, isregular:bool, sid:int):
     data_extracted = np.array([])
 
     for arr in data_myo:    # trialごとに分割
-        data_extracted = np.append(data_extracted, extraction(arr, isregular, sid))
+        data_extracted = np.append(data_extracted, np.array([signal.resample(dm, vel_sample_rate) for dm in arr]).T)
     
     data_extracted = data_extracted.reshape(16, -1).T   # np.appendでflatになったarrayを2次元に復元
     data_df = pd.DataFrame(data_extracted, columns=config.feature_name)
@@ -93,3 +79,5 @@ if __name__ == '__main__':
 
     pickle.dump(train_df, open(config.train_pkl_path, 'wb'))
     pickle.dump(test_df, open(config.test_pkl_path, 'wb'))
+
+    print('successfully finished.')
