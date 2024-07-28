@@ -42,8 +42,8 @@ def lgb_train(tr_x, tr_y, va_x, va_y):
 
     return model
 
-def lgb_predict(model, x):
-    return model.predict(x)
+def lgb_predict(model, x:pd.DataFrame):
+    return model.predict(x.drop(columns=config.drop_list, errors='ignore'))
 
 def print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred):
     '''
@@ -58,14 +58,13 @@ def make_submission(test):
     jsonの形式に合わせるためintやlistへの変換を行っている'''
     dic = dict()
 
-    for target in range(4):
-        tmp = test.loc[test['sid']==target+1]
-        target = 'sub' + str(target+1)
-        dic[target] = dict()
-
+    for sub in range(4):
+        tmp = test.loc[test['sid']==sub+1]
+        sub = 'sub' + str(sub+1)
+        dic[sub] = dict()
 
         for trial in np.unique(np.array(tmp['trial'])):
-            dic[target]['trial'+str(trial+1)] = [list(a) for a in np.array(tmp.loc[tmp['trial']==trial, config.target_name])]
+            dic[sub]['trial'+str(trial+1)] = [list(a) for a in np.array(tmp.loc[tmp['trial']==trial, [t+'_pred' for t in config.target_name]])]
 
     now = datetime.datetime.now()
     dirname = 'lgb_' + now.strftime('%m%d_%H:%M:%S')
@@ -95,7 +94,7 @@ def get_tr_va_index(train):
 def get_model_prediction(train, test, target):
     '''
     train, test, 予測対象を投げると予測値を追加したtestを返す'''
-    x = train.drop(columns=config.drop_list)
+    x = train.drop(columns=config.drop_list, errors='ignore')
     y = train[target]
 
     # trainとvalidの分割
@@ -111,9 +110,22 @@ def get_model_prediction(train, test, target):
     va_pred = lgb_predict(model, va_x)
 
     print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred)
-    test[target] = lgb_predict(model, test.drop(columns=config.drop_list, errors='ignore'))
+    return model
 
-    return test[target]
+def rmse_3d(train:pd.DataFrame):
+    '''
+    3次元rmseの計算
+    trainは予測値算出済'''
+    sum_rmse = 0
+    for sid in range(4):
+        sid += 1
+        tmp = train.loc[train['sid']==sid]
+        se = np.array([(np.array(tmp[t]) - np.array(tmp[t+'_pred']))**2 for t in config.target_name])
+        mse = np.sum(se) / se.shape[1]
+        sum_rmse += mse**0.5
+
+    mean_rmse = sum_rmse/4
+    return mean_rmse
 
 def main():
     train = pickle.load(open(config.train_pkl_path, 'rb'))
@@ -124,15 +136,23 @@ def main():
         print('\ntarget :', target)
 
         # 被験者ごとのモデル作成と予測
-        # for sid in range(4):
-        #     sid = sid + 1
-        #     print('\n被験者id :', sid)
-        #     train_tmp = train.loc[train['sid']==sid].copy()
-        #     test_tmp = test.loc[test['sid']==sid].copy()
-        #     test.loc[test['sid']==sid, target] = get_model_prediction(train_tmp, test_tmp, target)
+        for sid in range(4):
+            sid = sid + 1
+            print('\n被験者id :', sid)
+            train_tmp = train.loc[train['sid']==sid].copy()
+
+            mod = get_model_prediction(train_tmp, test.loc[test['sid']==sid].copy(), target)
+            
+            test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
+            train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
 
         # 被験者で分割しない場合
-        test[target] = get_model_prediction(train, test, target)
+        # _, tr_pred, te_pred = get_model_prediction(train, test, target)
+        # train[target+'_pred'] = tr_pred
+        # test[target+'_pred'] = te_pred
+    
+    rmse = rmse_3d(train)
+    print('\nrmse :', rmse)
 
     i = input('出力しますか(y/n)')=='y'
     if i:
