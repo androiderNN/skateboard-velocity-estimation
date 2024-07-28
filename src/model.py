@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 
 import config, processing
 
-rand = 0
+rand = 1
 params = {
     'objective': 'regression',
     'metric': 'rmse',
@@ -91,9 +91,9 @@ def get_tr_va_index(train):
 
     return tr_index, va_index, va_es_index
 
-def get_model_prediction(train, test, target):
+def get_model(train, target):
     '''
-    train, test, 予測対象を投げると予測値を追加したtestを返す'''
+    trainと予測対象を投げると予測値を追加したtestを返す'''
     x = train.drop(columns=config.drop_list, errors='ignore')
     y = train[target]
 
@@ -145,13 +145,13 @@ def main():
         #     print('\n被験者id :', sid)
         #     train_tmp = train.loc[train['sid']==sid].copy()
 
-        #     mod = get_model_prediction(train_tmp, test.loc[test['sid']==sid].copy(), target)
+        #     mod = get_model(train_tmp, target)
             
         #     test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
         #     train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
 
         # 被験者で分割しない場合
-        mod = get_model_prediction(train, test, target)
+        mod = get_model(train, target)
         test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
         train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
