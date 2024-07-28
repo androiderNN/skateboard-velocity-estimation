@@ -26,6 +26,22 @@ def extraction(data_myo, isregular, sid):
     data_myo = np.array([signal.resample(dm, vel_sample_rate) for dm in data_myo]).T
     return data_myo
 
+def convert_y(df):
+    df_tmp = df.loc[df['isregular']==0]
+    
+    # 列名の変更により筋電位データの左右入れ替え
+    col = [c[:-1]+c[-1].translate(str.maketrans({'L':'R', 'R':'L'})) for c in df_tmp.columns]
+    df_tmp.columns = col
+    
+    # 速度の実測値・予測値の正負を入れ替え
+    if 'vel_y' in col:
+        df_tmp.loc[:, 'vel_y'] = df_tmp['vel_y']*-1
+    if 'vel_y_pred' in col:
+        df_tmp.loc[:, 'vel_y_pred'] = df_tmp['vel_y_pred']*-1
+    
+    df.loc[df['isregular']==0] = df_tmp
+    return df
+
 def process(data_skater:np.array, isregular:bool, sid:int):
     '''
     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
@@ -68,5 +84,5 @@ if __name__ == '__main__':
     train_df = make_data(train_raw, True)
     test_df = make_data(test_raw, False)
 
-    pickle.dump(train_df, open(os.path.join(config.fdir, 'train_df.pkl'), 'wb'))
-    pickle.dump(test_df, open(os.path.join(config.fdir, 'test_df.pkl'), 'wb'))
+    pickle.dump(train_df, open(config.train_pkl_path, 'wb'))
+    pickle.dump(test_df, open(config.test_pkl_path, 'wb'))
