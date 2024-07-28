@@ -63,10 +63,18 @@ def process(data_sub:np.array, isregular:bool, sid:int):
 
     data_myo_trial = np.concatenate([data_myo_over02, data_myo_over01, data_myo_over005], axis=1)
     col = [c+i for i in ['_ov02', '_ov01', 'ov005'] for c in config.feature_name]
-    data_myo_trial = pd.DataFrame(data_myo_trial, columns=col)
+    data_myo_trial = pd.DataFrame(data_myo_trial, columns=col)  # 新規DataFrame作成
     data_myo_trial['trial'] = [i for i in range(len(data_myo_trial))]
 
+    # 筋電位データのdfとtrialの概略dfをtrialをキーに結合
     data_df = pd.merge(data_df, data_myo_trial, on='trial')
+
+    # 左右の差分を特徴量に追加
+    fs = np.unique(np.array([f[:-1] for f in config.feature_name]))
+    arr = np.array(data_df[[f+'R' for f in fs]]) - np.array(data_df[[f+'L' for f in fs]])
+    diff_df = pd.DataFrame(arr, columns=[f+'diff' for f in fs])
+    data_df = pd.merge(data_df, diff_df, left_index=True, right_index=True)
+
     return data_df
 
 def make_data(raw_data:np.array, istrain:bool):
