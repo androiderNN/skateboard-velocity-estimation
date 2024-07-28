@@ -75,6 +75,24 @@ def make_submission(test):
 
     print('\nexport succeed')
 
+def get_tr_va_index(train):
+    '''
+    trainのデータフレームを投げるとtrain, val, va_esのindexを作成'''
+    sid = train['sid'].tolist()
+    trial = train['trial'].tolist()
+    train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrial_idを作成
+    trial_id = np.unique(np.array(train['trial_id']))
+    tr_id, va_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
+    tr_id, va_es_id = train_test_split(tr_id, test_size=0.2, random_state=rand, shuffle=True)
+
+    tr_index = [id in tr_id for id in train['trial_id']]
+    va_index = [id in va_id for id in train['trial_id']]
+    va_es_index = [id in va_es_id for id in train['trial_id']]
+    train.drop(columns='trial_id', inplace=True)    # trainは参照なのでtrial_idを削除しておく
+
+    return tr_index, va_index, va_es_index
+
+
 def main():
     train = pickle.load(open(config.train_pkl_path, 'rb'))
     test = pickle.load(open(config.test_pkl_path, 'rb'))
@@ -87,18 +105,7 @@ def main():
         y = train[target]
 
         # trainとvalidの分割
-        sid = train['sid'].tolist()
-        trial = train['trial'].tolist()
-        train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrialのidを作成
-        trial_id = np.unique(np.array(train['trial_id']))
-        tr_id, va_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
-        tr_id, va_es_id = train_test_split(tr_id, test_size=0.2, random_state=rand, shuffle=True)
-
-        tr_index = [id in tr_id for id in train['trial_id']]
-        va_index = [id in va_id for id in train['trial_id']]
-        va_es_index = [id in va_es_id for id in train['trial_id']]
-        train.drop(columns='trial_id', inplace=True)
-
+        tr_index, va_index, va_es_index = get_tr_va_index(train)
         tr_x, tr_y = x[tr_index], y[tr_index]
         va_x, va_y = x[va_index], y[va_index]
         va_es_x, va_es_y = x[va_es_index], y[va_es_index]
