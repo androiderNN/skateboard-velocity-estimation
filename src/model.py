@@ -129,7 +129,7 @@ def main():
         #     print('\n被験者id :', sid)
         #     train_tmp = train.loc[train['sid']==sid].copy()
         #     test_tmp = test.loc[test['sid']==sid].copy()
-        #     test.loc[train['sid']==sid, target] = get_model_prediction(train_tmp, test_tmp, target)
+        #     test.loc[test['sid']==sid, target] = get_model_prediction(train_tmp, test_tmp, target)
 
         # 被験者で分割しない場合
         test[target] = get_model_prediction(train, test, target)
