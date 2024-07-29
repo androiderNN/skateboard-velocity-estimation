@@ -40,9 +40,10 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
     筋電位データと体勢データを展開'''
     data_myo = data_sub[0,0][0]  # 筋電位データ
-    data_extracted = np.array([])
 
     # 速度計測時点での筋電位データ
+    data_extracted = np.array([])
+
     for arr in data_myo:    # trialごとに分割
         data_extracted = np.append(data_extracted, np.array([signal.resample(dm, vel_sample_rate) for dm in arr]).T)
     
@@ -62,18 +63,25 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     data_myo_over005 = np.sum(data_myo_abs>0.05, axis=2)    # 0.05
 
     data_myo_trial = np.concatenate([data_myo_over02, data_myo_over01, data_myo_over005], axis=1)
-    col = [c+i for i in ['_ov02', '_ov01', 'ov005'] for c in config.feature_name]
+    col = [c+i for i in ['_ov0.2', '_ov0.1', '_ov0.05'] for c in config.feature_name]
     data_myo_trial = pd.DataFrame(data_myo_trial, columns=col)  # 新規DataFrame作成
     data_myo_trial['trial'] = [i for i in range(len(data_myo_trial))]
 
-    # 筋電位データのdfとtrialの概略dfをtrialをキーに結合
-    data_df = pd.merge(data_df, data_myo_trial, on='trial')
+    data_df = pd.merge(data_df, data_myo_trial, on='trial') # 筋電位データのdfとtrialの概略dfをtrialをキーに結合
 
     # 左右の差分を特徴量に追加
-    fs = np.unique(np.array([f[:-1] for f in config.feature_name]))
-    arr = np.array(data_df[[f+'R' for f in fs]]) - np.array(data_df[[f+'L' for f in fs]])
-    diff_df = pd.DataFrame(arr, columns=[f+'diff' for f in fs])
-    data_df = pd.merge(data_df, diff_df, left_index=True, right_index=True)
+    arr = [[]]*len(data_df)
+    col = []
+
+    for f in np.unique(np.array([f[:2] for f in config.feature_name])):
+        tails = np.unique([s[4:] for s in data_df.columns if s[:2]==f])   # 接尾辞リスト
+        r = np.array(data_df.loc[:, [f+' R'+t for t in tails]])
+        l = np.array(data_df.loc[:, [f+' L'+t for t in tails]])
+        tmp = r-l
+        arr = [arr[i]+list(tmp[i]) for i in range(len(data_df))]
+        col.extend([f+t+'_diff' for t in tails])
+
+    data_df = data_df.join(pd.DataFrame(arr, columns=col))
 
     return data_df
 

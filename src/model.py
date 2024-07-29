@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error
 import config, processing
 
 rand = 1
-split_by_subject = True
+split_by_subject = False
 modeltype = 'lgb'
 
 params = {
