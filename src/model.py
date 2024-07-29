@@ -8,6 +8,9 @@ from sklearn.metrics import mean_squared_error
 import config, processing
 
 rand = 1
+split_by_subject = True
+modeltype = 'lgb'
+
 params = {
     'objective': 'regression',
     'metric': 'rmse',
@@ -128,6 +131,8 @@ def rmse_3d(train:pd.DataFrame):
     return mean_rmse
 
 def main():
+    print('split_by_subject :', split_by_subject)
+
     train = pickle.load(open(config.train_pkl_path, 'rb'))
     test = pickle.load(open(config.test_pkl_path, 'rb'))
 
@@ -140,20 +145,22 @@ def main():
         print('\ntarget :', target)
 
         # 被験者ごとのモデル作成と予測
-        # for sid in range(4):
-        #     sid = sid + 1
-        #     print('\n被験者id :', sid)
-        #     train_tmp = train.loc[train['sid']==sid].copy()
+        if split_by_subject:
+            for sid in range(4):
+                sid = sid + 1
+                print('\n被験者id :', sid)
+                train_tmp = train.loc[train['sid']==sid].copy()
 
-        #     mod = get_model(train_tmp, target)
-            
-        #     test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
-        #     train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
+                mod = get_model(train_tmp, target)
+                
+                test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
+                train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
 
         # 被験者で分割しない場合
-        mod = get_model(train, target)
-        test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
-        train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
+        if not split_by_subject:
+            mod = get_model(train, target)
+            test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
+            train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
     # 予測後の変換
     # train = processing.convert_y(train, True)
