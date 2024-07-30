@@ -35,53 +35,66 @@ def convert_y(df, goofy_only:bool):
     
     return df
 
+# def process(data_sub:np.array, isregular:bool, sid:int):
+#     '''
+#     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
+#     筋電位データと体勢データを展開'''
+#     data_myo = data_sub[0,0][0]  # 筋電位データ
+
+#     # 速度計測時点での筋電位データ
+#     data_extracted = np.array([])
+
+#     for arr in data_myo:    # trialごとに分割
+#         data_extracted = np.append(data_extracted, np.array([signal.resample(dm, vel_sample_rate) for dm in arr]).T)
+    
+#     data_extracted = data_extracted.reshape(16, -1).T   # np.appendでflatになったarrayを2次元に復元
+#     data_df = pd.DataFrame(data_extracted, columns=config.feature_name)
+
+#     # 各種タグ付け
+#     data_df['isregular'] = int(isregular)
+#     data_df['sid'] = sid
+#     data_df['trial'] = [t for _ in range(vel_sample_rate) for t in range(len(data_myo))]
+#     data_df['timepoint'] = [i for i in range(vel_sample_rate) for _ in range(len(data_myo))]
+
+#     # trialの記述
+#     data_myo_abs = abs(data_myo)
+#     data_myo_over02 = np.sum(data_myo_abs>0.2, axis=2)  # 筋電位の絶対値が0.2を越える計測値の個数
+#     data_myo_over01 = np.sum(data_myo_abs>0.1, axis=2)  # 0.1
+#     data_myo_over005 = np.sum(data_myo_abs>0.05, axis=2)    # 0.05
+
+#     data_myo_trial = np.concatenate([data_myo_over02, data_myo_over01, data_myo_over005], axis=1)
+#     col = [c+i for i in ['_ov0.2', '_ov0.1', '_ov0.05'] for c in config.feature_name]
+#     data_myo_trial = pd.DataFrame(data_myo_trial, columns=col)  # 新規DataFrame作成
+#     data_myo_trial['trial'] = [i for i in range(len(data_myo_trial))]
+
+#     data_df = pd.merge(data_df, data_myo_trial, on='trial') # 筋電位データのdfとtrialの概略dfをtrialをキーに結合
+
+#     # 左右の差分を特徴量に追加
+#     arr = [[]]*len(data_df)
+#     col = []
+
+#     for f in np.unique(np.array([f[:2] for f in config.feature_name])):
+#         tails = np.unique([s[4:] for s in data_df.columns if s[:2]==f])   # 接尾辞リスト
+#         r = np.array(data_df.loc[:, [f+' R'+t for t in tails]])
+#         l = np.array(data_df.loc[:, [f+' L'+t for t in tails]])
+#         tmp = r-l
+#         arr = [arr[i]+list(tmp[i]) for i in range(len(data_df))]
+#         col.extend([f+t+'_diff' for t in tails])
+
+#     data_df = data_df.join(pd.DataFrame(arr, columns=col))
+
+#     return data_df
+
 def process(data_sub:np.array, isregular:bool, sid:int):
     '''
     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
     筋電位データと体勢データを展開'''
     data_myo = data_sub[0,0][0]  # 筋電位データ
 
-    # 速度計測時点での筋電位データ
-    data_extracted = np.array([])
-
-    for arr in data_myo:    # trialごとに分割
-        data_extracted = np.append(data_extracted, np.array([signal.resample(dm, vel_sample_rate) for dm in arr]).T)
-    
-    data_extracted = data_extracted.reshape(16, -1).T   # np.appendでflatになったarrayを2次元に復元
-    data_df = pd.DataFrame(data_extracted, columns=config.feature_name)
-
-    # 各種タグ付け
+    # 基本列作成
+    data_df = pd.DataFrame([[t, i] for i in range(vel_sample_rate) for t in range(len(data_myo))], columns=['trial', 'timepoint'])
     data_df['isregular'] = int(isregular)
     data_df['sid'] = sid
-    data_df['trial'] = [t for _ in range(vel_sample_rate) for t in range(len(data_myo))]
-    data_df['timepoint'] = [i for i in range(vel_sample_rate) for _ in range(len(data_myo))]
-
-    # trialの記述
-    data_myo_abs = abs(data_myo)
-    data_myo_over02 = np.sum(data_myo_abs>0.2, axis=2)  # 筋電位の絶対値が0.2を越える計測値の個数
-    data_myo_over01 = np.sum(data_myo_abs>0.1, axis=2)  # 0.1
-    data_myo_over005 = np.sum(data_myo_abs>0.05, axis=2)    # 0.05
-
-    data_myo_trial = np.concatenate([data_myo_over02, data_myo_over01, data_myo_over005], axis=1)
-    col = [c+i for i in ['_ov0.2', '_ov0.1', '_ov0.05'] for c in config.feature_name]
-    data_myo_trial = pd.DataFrame(data_myo_trial, columns=col)  # 新規DataFrame作成
-    data_myo_trial['trial'] = [i for i in range(len(data_myo_trial))]
-
-    data_df = pd.merge(data_df, data_myo_trial, on='trial') # 筋電位データのdfとtrialの概略dfをtrialをキーに結合
-
-    # 左右の差分を特徴量に追加
-    arr = [[]]*len(data_df)
-    col = []
-
-    for f in np.unique(np.array([f[:2] for f in config.feature_name])):
-        tails = np.unique([s[4:] for s in data_df.columns if s[:2]==f])   # 接尾辞リスト
-        r = np.array(data_df.loc[:, [f+' R'+t for t in tails]])
-        l = np.array(data_df.loc[:, [f+' L'+t for t in tails]])
-        tmp = r-l
-        arr = [arr[i]+list(tmp[i]) for i in range(len(data_df))]
-        col.extend([f+t+'_diff' for t in tails])
-
-    data_df = data_df.join(pd.DataFrame(arr, columns=col))
 
     return data_df
 
