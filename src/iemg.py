@@ -3,7 +3,7 @@ import pandas as pd
 from scipy import signal
 
 fs = 2000
-lowcut = 4.8
+lowcut = 4
 order = 2
 
 def get_filter(lowcut, fs, order):
@@ -22,6 +22,8 @@ def apply_filter(x):
     return y
 
 def iemg(data_myo):
+    '''
+    一人分の筋電位データを入力するとフィルタ適用後の筋電位データを出力する'''
     data_myo = abs(data_myo)
     data_myo = np.apply_along_axis(apply_filter, 2, data_myo)
     return data_myo
