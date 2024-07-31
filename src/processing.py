@@ -50,13 +50,13 @@ def process(data_sub:np.array, isregular:bool, sid:int):
 
     # iemg計算
     ie = iemg.iemg(data_myo)
-
+    
     # trialの記述
     # 1000個のデータから均等にn点のデータを取得してtrial全体を描写する
     n = 6
     index = np.array([0] + [int(round((i+1)*1000/(n-1)))-1 for i in range(n-1)])
-    ie_tr = ie[:, :, index].reshape(ie.shape[0], -1)
-    ie_tr_col = [c+'_itrial_'+str(index[i]) for i in range(n) for c in config.feature_name]
+    ie_tr = ie[:, :, index].reshape(num_trial, -1)
+    ie_tr_col = [c+'_itrial_'+str(index[i]) for c in config.feature_name for i in range(n)]
 
     ie_tr = pd.DataFrame(ie_tr, columns=ie_tr_col)
     ie_tr['trial'] = [i for i in range(num_trial)]
@@ -76,7 +76,7 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     ie_ti_col = [c+'_itime_'+str(i) for c in config.feature_name for i in iemg_index[0]]
 
     ie_ti = pd.DataFrame(ie_ti, columns=ie_ti_col)
-    ie_ti[['trial', 'timepoint']] = [[tr, ti] for ti in range(vel_freq) for tr in range(num_trial)]
+    ie_ti[['trial', 'timepoint']] = [[tr, ti] for tr in range(num_trial) for ti in range(vel_freq)]
     data_df = pd.merge(data_df, ie_ti, on=['trial', 'timepoint'])
 
     return data_df
