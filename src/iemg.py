@@ -19,6 +19,7 @@ def apply_filter(x):
     フィルタを適用する関数'''
     b, a = get_filter(lowcut, fs, order)
     y = signal.filtfilt(b, a, x)
+    y = y/y.max()   # 最大値で除して正規化
     return y
 
 def iemg(data_myo):
