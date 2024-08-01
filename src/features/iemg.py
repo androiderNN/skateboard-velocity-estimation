@@ -3,7 +3,7 @@ import pandas as pd
 from scipy import signal
 
 fs = 2000
-lowcut = 4
+lowcut = 20
 order = 2
 
 def get_filter(lowcut, fs, order):

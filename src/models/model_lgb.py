@@ -1,11 +1,12 @@
-import os, pickle, datetime, json
+import os, pickle, datetime, json, sys
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split, GroupKFold
 from sklearn.metrics import mean_squared_error
 
-import config, processing
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import config
 
 rand = 1
 split_by_subject = False
@@ -17,16 +18,6 @@ params = {
     'random_state': rand,
     'verbose': -1,
 }
-# params.update({
-#     'n_estimators': ,
-#     'learning_rate': ,
-#     'max_depth': ,
-#     'num_leaves': ,
-#     'min_child_samples': ,
-#     'subsample': ,
-#     'colsample_bytree': ,
-#     'subsample_freq': 
-# })
 
 def lgb_train(tr_x, tr_y, va_x, va_y):
     '''
@@ -136,10 +127,6 @@ def main():
     train = pickle.load(open(config.train_pkl_path, 'rb'))
     test = pickle.load(open(config.test_pkl_path, 'rb'))
 
-    # 予測後の変換
-    # train = processing.convert_y(train, True)
-    # test = processing.convert_y(test, True)
-
     # x, y, zごとのモデル作成と予測
     for target in config.target_name:
         print('\ntarget :', target)
@@ -161,10 +148,6 @@ def main():
             mod = get_model(train, target)
             test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
             train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
-
-    # 予測後の変換
-    # train = processing.convert_y(train, True)
-    # test = processing.convert_y(test, True)
 
     rmse = rmse_3d(train)
     print('\nrmse :', rmse)

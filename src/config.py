@@ -1,6 +1,6 @@
 import os
 
-fdir = '../files'
+fdir = '../data'
 exdir = '../export'
 train_path = os.path.join(fdir, 'train.mat')
 test_path = os.path.join(fdir, 'test.mat')

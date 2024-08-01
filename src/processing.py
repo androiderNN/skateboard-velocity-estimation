@@ -4,7 +4,8 @@ import pandas as pd
 from scipy import io as sio
 from scipy import signal
 
-import config, iemg
+import config
+from features import iemg
 
 train_raw = sio.loadmat(config.train_path)
 test_raw = sio.loadmat(config.test_path)
