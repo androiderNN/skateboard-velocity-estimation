@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
 rand = 1
-split_by_subject = False
+split_by_subject = True
 modeltype = 'lgb'
 
 params = {

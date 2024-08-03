@@ -5,7 +5,7 @@ from scipy import io as sio
 from scipy import signal
 
 import config
-from features import iemg
+from features import iemg, fft
 
 train_raw = sio.loadmat(config.train_path)
 test_raw = sio.loadmat(config.test_path)
@@ -49,6 +49,7 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     data_df['isregular'] = int(isregular)
     data_df.insert(0, 'sid', sid)
 
+    '''
     # iemg計算
     ie = iemg.iemg(data_myo)
     
@@ -79,6 +80,11 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     ie_ti = pd.DataFrame(ie_ti, columns=ie_ti_col)
     ie_ti[['trial', 'timepoint']] = [[tr, ti] for tr in range(num_trial) for ti in range(vel_freq)]
     data_df = pd.merge(data_df, ie_ti, on=['trial', 'timepoint'])
+    '''
+    
+    # fft計算
+    fft_df = fft.fft(data_myo)
+    data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
 
     return data_df
 
