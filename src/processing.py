@@ -81,7 +81,7 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     '''
     
     # fft計算
-    fft_df = fft.fft(data_myo)
+    fft_df = fft.fft_onVelosityTime(data_myo)
     data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
 
     return data_df
