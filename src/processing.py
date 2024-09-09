@@ -9,8 +9,6 @@ from features import iemg, fft
 
 train_raw = sio.loadmat(config.train_path)
 test_raw = sio.loadmat(config.test_path)
-emg_freq = 2000 # 2000fps
-vel_freq = 30   # 30fps
 
 def convert_y(df, goofy_only:bool):
     '''
@@ -45,7 +43,7 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     num_trial = data_myo.shape[0]
 
     # 基本列作成
-    data_df = pd.DataFrame([[t, i] for i in range(vel_freq) for t in range(num_trial)], columns=['trial', 'timepoint'])
+    data_df = pd.DataFrame([[t+1, i] for t in range(num_trial) for i in range(30)], columns=['trial', 'timepoint'])
     data_df['isregular'] = int(isregular)
     data_df.insert(0, 'sid', sid)
 
@@ -74,11 +72,11 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     iemg_index = [[i-(n*m)+(m*j) for j in range(2*n+1)] for i in iemg_index]  # indexの二次元配列を得る
     ie_ti = ie[:,:,iemg_index]
     ie_ti = ie_ti.transpose(0,2,1,3)
-    ie_ti = ie_ti.reshape(num_trial*vel_freq, -1)
+    ie_ti = ie_ti.reshape(num_trial*30, -1)
     ie_ti_col = [c+'_itime_'+str(i) for c in config.feature_name for i in iemg_index[0]]
 
     ie_ti = pd.DataFrame(ie_ti, columns=ie_ti_col)
-    ie_ti[['trial', 'timepoint']] = [[tr, ti] for tr in range(num_trial) for ti in range(vel_freq)]
+    ie_ti[['trial', 'timepoint']] = [[tr, ti] for tr in range(num_trial) for ti in range(30)]
     data_df = pd.merge(data_df, ie_ti, on=['trial', 'timepoint'])
     '''
     
@@ -100,7 +98,7 @@ def make_data(raw_data:np.array, istrain:bool):
 
         # trainならば速度列をDataframeに追加する
         if istrain:
-            tmp_df[config.target_name] = raw_data[sid][0,0][1].transpose(1,2,0).reshape(3, -1).T
+            tmp_df[config.target_name] = raw_data[sid][0,0][1].reshape(-1,3,30).transpose(0,2,1).reshape(-1,3)
         
         df = pd.concat([df, tmp_df])
     

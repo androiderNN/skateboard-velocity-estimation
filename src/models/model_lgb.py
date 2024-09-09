@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
 rand = 1
-split_by_subject = True
+split_by_subject = False
 modeltype = 'lgb'
 
 params = {
@@ -58,7 +58,7 @@ def make_submission(test):
         dic[sub] = dict()
 
         for trial in np.unique(np.array(tmp['trial'])):
-            dic[sub]['trial'+str(trial+1)] = [list(a) for a in np.array(tmp.loc[tmp['trial']==trial, [t+'_pred' for t in config.target_name]])]
+            dic[sub]['trial'+str(trial)] = [list(a) for a in np.array(tmp.loc[tmp['trial']==trial, [t+'_pred' for t in config.target_name]])]
 
     now = datetime.datetime.now()
     dirname = 'lgb_' + now.strftime('%m%d_%H:%M:%S')
@@ -143,8 +143,8 @@ def main():
                 test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
                 train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
 
-        # 被験者で分割しない場合
-        if not split_by_subject:
+        else:
+            # 被験者で分割しない場合
             mod = get_model(train, target)
             test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
             train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))

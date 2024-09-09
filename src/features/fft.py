@@ -13,6 +13,8 @@ def fft(data_myo):
     acf = 1/(sum(winf)/2*overlap)   # 窓関数の補正値
     freq = np.fft.fftfreq(2*overlap, d=dt)[:overlap]    # 周波数
 
+    data_myo = data_myo / data_myo.max(axis=2)[:,:,np.newaxis]
+
     fft = np.zeros([data_myo.shape[0], 30, data_myo.shape[1], overlap], dtype=float)
     
     for trial in range(data_myo.shape[0]):
@@ -31,6 +33,6 @@ def fft(data_myo):
     col = [c+'_fft'+str(f) for c in feature_name for f in freq]
 
     fft_df = pd.DataFrame(fft_reshaped, columns=col)
-    fft_df[['trial', 'timepoint']] = [[tr, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
+    fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
 
     return fft_df
