@@ -13,7 +13,6 @@ def fft_core(data):
     windowF = np.hanning(n) # 窓関数
     acf = n/sum(windowF)    # 窓関数の補正値
 
-    data /= data.max(axis=2)[:,:,np.newaxis]
     data = data*windowF
    
     fft = np.zeros([data.shape[0], data.shape[1], n//2])
@@ -40,6 +39,8 @@ def fft_onVelosityTime(data_myo):
     # 高速フーリエ変換
     overlap = 32
     fft = np.zeros([data_myo.shape[0], 30, data_myo.shape[1], overlap-1], dtype=float)
+
+    data_myo /= data_myo.max(axis=2)[:,:,np.newaxis]
 
     for timepoint in range(29):
         myo = data_myo[:, :, round(1000*(timepoint+1)/30-overlap):round(1000*(timepoint+1)/30+overlap)] # 筋電位データ切り出し
