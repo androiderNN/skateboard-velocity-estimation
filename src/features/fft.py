@@ -30,7 +30,7 @@ def fft_core(data):
 
 def get_freq(data):
     n = data.shape[2]
-    freq = np.fft.fftfreq(data.shape[2]//2, d=dt)[1:n//2]   # 0は0Hzなので除く
+    freq = np.fft.fftfreq(data.shape[2], d=dt)[1:n//2]   # 0は0Hzなので除く
     return freq
 
 def fft_onVelosityTime(data_myo):
