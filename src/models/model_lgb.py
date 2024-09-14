@@ -79,27 +79,28 @@ def get_tr_va_index(train):
     trial = train['trial'].tolist()
     train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrial_idを作成
     trial_id = np.unique(np.array(train['trial_id']))
-    tr_id, va_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
-    tr_id, va_es_id = train_test_split(tr_id, test_size=0.2, random_state=rand, shuffle=True)
+    tr_id, va_es_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
+    tr_id, va_id = train_test_split(tr_id, test_size=0.1, random_state=rand, shuffle=True)
 
     tr_index = [id in tr_id for id in train['trial_id']]
-    va_index = [id in va_id for id in train['trial_id']]
     va_es_index = [id in va_es_id for id in train['trial_id']]
+    va_index = [id in va_id for id in train['trial_id']]
     train.drop(columns='trial_id', inplace=True)    # trainは参照なのでtrial_idを削除しておく
 
-    return tr_index, va_index, va_es_index
+    return tr_index, va_es_index, va_index
 
-def get_model(train, target):
+def get_model(train, target, index):
     '''
-    trainと予測対象を投げると予測値を追加したtestを返す'''
+    train、予測対象、インデックスのarrayを投げると予測値を追加したtestを返す
+    インデックスは[train, valid, test]の形式
+    get_tr_va_indexで得られる形式'''
     x = train.drop(columns=config.drop_list, errors='ignore')
     y = train[target]
 
     # trainとvalidの分割
-    tr_index, va_index, va_es_index = get_tr_va_index(train)
-    tr_x, tr_y = x[tr_index], y[tr_index]
-    va_x, va_y = x[va_index], y[va_index]
-    va_es_x, va_es_y = x[va_es_index], y[va_es_index]
+    tr_x, tr_y = x[index[0]], y[index[0]]
+    va_x, va_y = x[index[1]], y[index[1]]
+    va_es_x, va_es_y = x[index[2]], y[index[2]]
 
     # 学習と予測
     model = lgb_train(tr_x, tr_y, va_es_x, va_es_y)
@@ -136,7 +137,7 @@ def main():
         print('\ntarget :', target)
 
         # 被験者ごとのモデル作成と予測
-        if split_by_subject:
+        '''if split_by_subject:
             for sid in range(4):
                 sid = sid + 1
                 print('\n被験者id :', sid)
@@ -146,15 +147,22 @@ def main():
                 
                 test.loc[test['sid']==sid, target+'_pred'] = lgb_predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
                 train.loc[train['sid']==sid, target+'_pred'] = lgb_predict(mod, train_tmp)
+        '''
 
-        else:
+        index = get_tr_va_index(train)
+
+        if not split_by_subject:
             # 被験者で分割しない場合
-            mod = get_model(train, target)
+            mod = get_model(train, target, index)
             test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
             train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
-    rmse = rmse_3d(train)
-    print('\nrmse :', rmse)
+    tr_rmse = rmse_3d(train[index[0]])
+    print('\ntrain rmse :', tr_rmse)
+    va_rmse = rmse_3d(train[index[1]])
+    print('valid rmse :', va_rmse)
+    te_rmse = rmse_3d(train[index[2]])
+    print('test rmse  :', te_rmse)
 
     i = input('出力しますか(y/n)')=='y'
     if i:
