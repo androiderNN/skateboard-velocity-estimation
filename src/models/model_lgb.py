@@ -42,12 +42,13 @@ def lgb_train(tr_x, tr_y, va_x, va_y):
 def lgb_predict(model, x:pd.DataFrame):
     return model.predict(x.drop(columns=config.drop_list, errors='ignore'))
 
-def print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred):
+def print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred):
     '''
     正解と予測値を渡すとスコアを出力する'''
     print('train :', mean_squared_error(tr_y, tr_pred)**0.5)
-    print('estop :', mean_squared_error(va_es_y, va_es_pred)**0.5)
-    print('valid :', mean_squared_error(va_y, va_pred)**0.5)
+    print('estop :', mean_squared_error(es_y, es_pred)**0.5)
+    if (va_y is not None) and (va_pred is not None):
+        print('valid :', mean_squared_error(va_y, va_pred)**0.5)
 
 def make_submission(test):
     '''
@@ -75,22 +76,31 @@ def make_submission(test):
 
     print('\nexport succeed')
 
-def get_tr_va_index(train):
+def get_tr_va_index(train, es_size=0.2, va_size=0):
     '''
     trainのデータフレームを投げるとtrain, val, va_esのindexを作成'''
+    if es_size+va_size>1:
+        raise ValueError
+    
     sid = train['sid'].tolist()
     trial = train['trial'].tolist()
     train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrial_idを作成
     trial_id = np.unique(np.array(train['trial_id']))
-    tr_id, va_es_id = train_test_split(trial_id, test_size=0.2, random_state=rand, shuffle=True)
-    tr_id, va_id = train_test_split(tr_id, test_size=0.1, random_state=rand, shuffle=True)
+    tr_id, es_id = train_test_split(trial_id, test_size=es_size, random_state=rand, shuffle=True)
 
     tr_index = [id in tr_id for id in train['trial_id']]
-    va_es_index = [id in va_es_id for id in train['trial_id']]
-    va_index = [id in va_id for id in train['trial_id']]
+    es_index = [id in es_id for id in train['trial_id']]
+    index = [tr_index, es_index]
+
+    if va_size>0:   # validationが設定されているとき
+        tr_id, va_id = train_test_split(tr_id, test_size=va_size, random_state=rand, shuffle=True)
+        tr_index = [id in tr_id for id in train['trial_id']]
+        va_index = [id in va_id for id in train['trial_id']]
+        index = [tr_index, es_index, va_index]
+
     train.drop(columns='trial_id', inplace=True)    # trainは参照なのでtrial_idを削除しておく
 
-    return tr_index, va_es_index, va_index
+    return index
 
 def get_model(train, target, index):
     '''
@@ -102,16 +112,20 @@ def get_model(train, target, index):
 
     # trainとvalidの分割
     tr_x, tr_y = x[index[0]], y[index[0]]
-    va_x, va_y = x[index[1]], y[index[1]]
-    va_es_x, va_es_y = x[index[2]], y[index[2]]
+    es_x, es_y = x[index[1]], y[index[1]]
 
     # 学習と予測
-    model = lgb_train(tr_x, tr_y, va_es_x, va_es_y)
+    model = lgb_train(tr_x, tr_y, es_x, es_y)
     tr_pred = lgb_predict(model, tr_x)
-    va_es_pred = lgb_predict(model, va_es_x)
-    va_pred = lgb_predict(model, va_x)
+    es_pred = lgb_predict(model, es_x)
 
-    print_score(tr_y, tr_pred, va_y, va_pred, va_es_y, va_es_pred)
+    va_y, va_pred = None, None
+    # validのインデックスが分割されているとき
+    if len(index) == 3:
+        va_x, va_y = x[index[2]], y[index[2]]
+        va_pred = lgb_predict(model, va_x)
+
+    print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred)
     return model
 
 def rmse_3d(train:pd.DataFrame):
@@ -162,10 +176,12 @@ def main():
 
     tr_rmse = rmse_3d(train[index[0]])
     print('\ntrain rmse :', tr_rmse)
-    va_rmse = rmse_3d(train[index[1]])
-    print('valid rmse :', va_rmse)
-    te_rmse = rmse_3d(train[index[2]])
-    print('test rmse  :', te_rmse)
+    es_rmse = rmse_3d(train[index[1]])
+    print('estop rmse :', es_rmse)
+
+    if len(index)==3:   # validationが設定されているとき
+        va_rmse = rmse_3d(train[index[2]])
+        print('valid rmse  :', va_rmse)
 
     i = input('出力しますか(y/n)')=='y'
     if i:
