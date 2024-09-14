@@ -47,42 +47,12 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     data_df['isregular'] = int(isregular)
     data_df.insert(0, 'sid', sid)
 
-    '''
-    # iemg計算
-    ie = iemg.iemg(data_myo)
-    
-    # trialの記述
-    # 1000個のデータから均等にn点のデータを取得してtrial全体を描写する
-    n = 6
-    index = np.array([0] + [int(round((i+1)*1000/(n-1)))-1 for i in range(n-1)])
-    ie_tr = ie[:, :, index].reshape(num_trial, -1)
-    ie_tr_col = [c+'_itrial_'+str(index[i]) for c in config.feature_name for i in range(n)]
-
-    ie_tr = pd.DataFrame(ie_tr, columns=ie_tr_col)
-    ie_tr['trial'] = [i for i in range(num_trial)]
-    data_df = pd.merge(data_df, ie_tr, on='trial')
-
-    # 速度観測時点前後のiemgデータ挿入
-    # 速度観測時点前後のiemgデータを1/m点ごとに前後各n個取得する　データ数は2n+1個
-    n = 10
-    m = 3
-    iemg_index = [round((i+1)*1000/30) for i in range(30)]  # 速度計測時刻の筋電位観測データインデックス
-    iemg_index = [i if i-(n*m)>0 else (n*m) for i in iemg_index]  # インデックスが0を下回るときはminが0になるよう調整
-    iemg_index = [i if i+(n*m)<1000 else 1000-(n*m)-1 for i in iemg_index]  # インデックスが1000を越えるときはmaxが1000になるよう調整
-    iemg_index = [[i-(n*m)+(m*j) for j in range(2*n+1)] for i in iemg_index]  # indexの二次元配列を得る
-    ie_ti = ie[:,:,iemg_index]
-    ie_ti = ie_ti.transpose(0,2,1,3)
-    ie_ti = ie_ti.reshape(num_trial*30, -1)
-    ie_ti_col = [c+'_itime_'+str(i) for c in config.feature_name for i in iemg_index[0]]
-
-    ie_ti = pd.DataFrame(ie_ti, columns=ie_ti_col)
-    ie_ti[['trial', 'timepoint']] = [[tr, ti] for tr in range(num_trial) for ti in range(30)]
+    ie_ti = iemg.iemg(data_myo)
     data_df = pd.merge(data_df, ie_ti, on=['trial', 'timepoint'])
-    '''
     
     # fft計算
-    fft_df = fft.fft_onVelosityTime(data_myo)
-    data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
+    # fft_df = fft.fft_onVelosityTime(data_myo)
+    # data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
 
     return data_df
 

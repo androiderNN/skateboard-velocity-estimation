@@ -1,7 +1,10 @@
+import os, sys
 import numpy as np
 import pandas as pd
 
-feature_name = ['TA R', 'TA L', 'LG R', 'LG L', 'RF R', 'RF L', 'VL R', 'VL L', 'ST R', 'ST L', 'GM R', 'GM L', 'EM R', 'EM L', 'DE R', 'DE L']
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import config
+
 dt = 1/2000
 
 def fft_core(data):
@@ -54,7 +57,7 @@ def fft_onVelosityTime(data_myo):
     # 周波数のndarrayをDataFrameに変換
     fft_reshaped = fft.reshape(fft.shape[0], fft.shape[1], -1)   # colとfreqを同一次元に
     fft_reshaped = fft_reshaped.reshape(-1, fft_reshaped.shape[-1])    # trialとtimepointを同一次元に
-    col = [c+'_fft'+str(f) for c in feature_name for f in freq]
+    col = [c+'_fft'+str(f) for c in config.feature_name for f in freq]
 
     fft_df = pd.DataFrame(fft_reshaped, columns=col)
     fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
