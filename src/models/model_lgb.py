@@ -12,23 +12,26 @@ rand = 1
 split_by_subject = False
 modeltype = 'lgb'
 
-params = {
-    'objective': 'regression',
-    'metric': 'rmse',
-    'random_state': rand,
-    'verbose': -1,
-}
-
 def lgb_train(tr_x, tr_y, va_x, va_y):
     '''
     trainとvalidのDataframeを投げるとlightgbmのモデルを返す'''
+    params = {
+        'objective': 'regression',
+        'metric': 'rmse',
+        'random_state': rand,
+        'verbose': -1,
+        # 'reg_alpha': 1,
+        # 'reg_lambda': 1,
+        # 'min_child_samples': 100
+    }
+    
     tr_lgb = lgb.Dataset(tr_x, tr_y)
     va_lgb = lgb.Dataset(va_x, va_y)
 
     model = lgb.train(
         params=params,
         train_set=tr_lgb,
-        num_boost_round=100,
+        num_boost_round=1000,
         valid_sets=va_lgb,
         valid_names=['train', 'valid'],
         callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=True)]
