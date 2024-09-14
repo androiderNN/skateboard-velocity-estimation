@@ -75,6 +75,7 @@ def make_submission(test):
     json.dump(dic, open(os.path.join(dirpath, 'submission.json'), 'w'))
 
     print('\nexport succeed')
+    return dirpath
 
 def get_tr_va_index(train, es_size=0.2, va_size=0):
     '''
@@ -132,22 +133,17 @@ def rmse_3d(train:pd.DataFrame):
     '''
     3次元rmseの計算
     trainは予測値算出済'''
-    sum_rmse = 0
-    for sid in range(4):
-        sid += 1
-        tmp = train.loc[train['sid']==sid]
-        se = np.array([(np.array(tmp[t]) - np.array(tmp[t+'_pred']))**2 for t in config.target_name])
-        mse = np.sum(se) / se.shape[1]
-        sum_rmse += mse**0.5
-
-    mean_rmse = sum_rmse/4
-    return mean_rmse
+    se = np.array([(np.array(train[t]) - np.array(train[t+'_pred']))**2 for t in config.target_name])
+    mse = np.sum(se) / se.shape[1]
+    rmse = mse**0.5
+    return rmse
 
 def main():
     print('split_by_subject :', split_by_subject)
 
     train = pickle.load(open(config.train_pkl_path, 'rb'))
     test = pickle.load(open(config.test_pkl_path, 'rb'))
+    model = list()
 
     # x, y, zごとのモデル作成と予測
     for target in config.target_name:
@@ -174,6 +170,9 @@ def main():
             test[target+'_pred'] = lgb_predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
             train[target+'_pred'] = lgb_predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
+            model.append(mod)
+
+    # rmse出力
     tr_rmse = rmse_3d(train[index[0]])
     print('\ntrain rmse :', tr_rmse)
     es_rmse = rmse_3d(train[index[1]])
@@ -183,9 +182,19 @@ def main():
         va_rmse = rmse_3d(train[index[2]])
         print('valid rmse  :', va_rmse)
 
+    # feature importance出力
+    importance_df = pd.DataFrame( \
+        {t: model[i].feature_importance(importance_type='gain') for i, t in enumerate(config.target_name)}, \
+        index=train.drop(columns=config.drop_list, errors='ignore').columns, \
+        columns=config.target_name)
+    importance_df['mean'] = importance_df.mean(axis=1)
+    # importance_df.sort_values('mean', ascending=False, inplace=True)
+    print(importance_df.head(10), '\n')
+
     i = input('出力しますか(y/n)')=='y'
     if i:
-        make_submission(test)
+        expath = make_submission(test)
+        importance_df.to_csv(os.path.join(expath, 'importance.csv'))
 
 if __name__=='__main__':
     main()
