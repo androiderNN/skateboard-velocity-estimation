@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 feature_name = ['TA R', 'TA L', 'LG R', 'LG L', 'RF R', 'RF L', 'VL R', 'VL L', 'ST R', 'ST L', 'GM R', 'GM L', 'EM R', 'EM L', 'DE R', 'DE L']
-n = 1000
 dt = 1/2000
 
 def fft_core(data):
@@ -30,6 +29,7 @@ def fft_core(data):
     return fft
 
 def get_freq(data):
+    n = data.shape[2]
     freq = np.fft.fftfreq(data.shape[2]//2, d=dt)[1:n//2]   # 0は0Hzなので除く
     return freq
 
