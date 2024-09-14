@@ -50,6 +50,10 @@ def make_submission(test):
     '''
     予測済のtest dataframeを投げると投稿ファイルを出力する
     jsonの形式に合わせるためintやlistへの変換を行っている'''
+    # testの予測値のためXYをいれかえ
+    test['vel_x_pred'] = -1*test['vel_x_pred']
+    test['vel_y_pred'] = -1*test['vel_y_pred']
+
     dic = dict()
 
     for sub in range(4):
