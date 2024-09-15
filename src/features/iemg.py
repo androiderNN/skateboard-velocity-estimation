@@ -2,6 +2,7 @@ import os, sys
 import numpy as np
 import pandas as pd
 from scipy import signal
+from sklearn.linear_model import LinearRegression
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
@@ -49,6 +50,28 @@ def pickfromtrial(ie, n):
     df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
     return df
 
+def describeiemg(ie):
+    '''
+    iemgから複数の特徴量を抽出する'''
+    features = ['iemg_coef', 'iemg_inter']  # 傾きと切片
+    tmp = np.zeros(shape=(ie.shape[0], ie.shape[1], len(features)), dtype=np.float32)
+    regressor = LinearRegression()
+    x = np.linspace(0, 999, 1000, dtype=np.int32)[:, np.newaxis]
+
+    for trial in range(ie.shape[0]):
+        for col in range(ie.shape[1]):
+            y = ie[trial, col, :]
+            regressor.fit(x, y)
+            tmp[trial, col, :] = regressor.coef_ + regressor.intercept_
+    
+    tmp = tmp.reshape((tmp.shape[0], -1))   # colと特徴量を同一次元に
+    tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
+    tmp = tmp.reshape((-1, tmp.shape[2]))
+    df_col = [f+'_'+c for f in config.feature_name for c in features]
+    df = pd.DataFrame(tmp, columns=df_col)
+    df[['trial', 'timepoint']] = [[t+1, i] for t in range(ie.shape[0]) for i in range(30)]
+    return df
+
 def pickfortimepoint(ie, n, m):
     '''
     速度観測時点前後のiemgデータをm点ごとに前後各n個取得する データ数は2n+1個'''
@@ -80,6 +103,9 @@ def iemg(data_myo):
     
     # trialの記述
     tmp_df = pickfromtrial(ie, n_pick_tr)
+    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+
+    tmp_df = describeiemg(ie)
     df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
 
     # 速度観測時点前後のiemgデータ抽出
