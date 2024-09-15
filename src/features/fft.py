@@ -60,6 +60,10 @@ def fft_onVelosityTime(data_myo):
     col = [c+'_fft'+str(f) for c in config.feature_name for f in freq]
 
     fft_df = pd.DataFrame(fft_reshaped, columns=col)
+    
+    # 各colのfft平均を挿入
+    fft_df[['fft_dens_'+col for col in config.feature_name]] = fft.mean(axis=3).reshape(-1, fft.shape[2])
+
     fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
 
     return fft_df

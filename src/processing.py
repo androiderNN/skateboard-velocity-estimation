@@ -47,12 +47,13 @@ def process(data_sub:np.array, isregular:bool, sid:int):
     data_df['isregular'] = int(isregular)
     data_df.insert(0, 'sid', sid)
 
-    ie_ti = iemg.iemg(data_myo)
-    data_df = pd.merge(data_df, ie_ti, on=['trial', 'timepoint'])
+    # iemg計算
+    # iemg_df = iemg.iemg(data_myo)
+    # data_df = pd.merge(data_df, iemg_df, on=['trial', 'timepoint'])
     
     # fft計算
-    # fft_df = fft.fft_onVelosityTime(data_myo)
-    # data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
+    fft_df = fft.fft_onVelosityTime(data_myo)
+    data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
 
     return data_df
 

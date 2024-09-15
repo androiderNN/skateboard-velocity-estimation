@@ -20,9 +20,9 @@ def lgb_train(tr_x, tr_y, va_x, va_y):
         'metric': 'rmse',
         'random_state': rand,
         'verbose': -1,
-        # 'reg_alpha': 1,
-        # 'reg_lambda': 1,
-        # 'min_child_samples': 100
+        'min_child_samples': 100,
+        'bagging_fraction': 0.5,
+        'bagging_freq': 1
     }
     
     tr_lgb = lgb.Dataset(tr_x, tr_y)
@@ -185,11 +185,11 @@ def main():
     # feature importance出力
     importance_df = pd.DataFrame( \
         {t: model[i].feature_importance(importance_type='gain') for i, t in enumerate(config.target_name)}, \
-        index=train.drop(columns=config.drop_list, errors='ignore').columns, \
         columns=config.target_name)
     importance_df['mean'] = importance_df.mean(axis=1)
+    importance_df.insert(0, 'index', train.drop(columns=config.drop_list, errors='ignore').columns)
     # importance_df.sort_values('mean', ascending=False, inplace=True)
-    print(importance_df.head(10), '\n')
+    print(importance_df.sort_values('mean', ascending=False).head(10), '\n')
 
     i = input('出力しますか(y/n)')=='y'
     if i:
