@@ -33,38 +33,57 @@ def iemg_core(data_myo):
     data_myo = np.apply_along_axis(apply_filter, 2, data_myo)
     return data_myo
 
-def iemg(data_myo, n_in_tr=6, n_for_ti=6, n_space=3):
-    num_trial = data_myo.shape[0]
+def pickfromtrial(ie, n):
+    '''
+    1000個のデータから均等にn点のデータを取得してtrial全体を描写する'''
+    num_trial = ie.shape[0]
 
-    # iemg計算
-    ie = iemg_core(data_myo)
-    
-    # trialの記述
-    # 1000個のデータから均等にn_in_tr点のデータを取得してtrial全体を描写する
-    index = np.array([0] + [int(round((i+1)*1000/(n_in_tr-1)))-1 for i in range(n_in_tr-1)])
+    index = np.array([0] + [int(round((i+1)*1000/(n-1)))-1 for i in range(n-1)])
     ie_tr = ie[:, :, index].reshape(num_trial, -1)
-    ie_tr_col = [c+'_iemgtr_'+str(index[i]) for c in config.feature_name for i in range(n_in_tr)]
+    ie_tr_col = [c+'_iemgtr_'+str(index[i]) for c in config.feature_name for i in range(n)]
 
     ie_tr = np.array([[l]*30 for l in ie_tr])
     ie_tr = ie_tr.reshape(-1, ie_tr.shape[2])
 
-    ie_tr_df = pd.DataFrame(ie_tr, columns=ie_tr_col)
-    ie_tr_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
+    df = pd.DataFrame(ie_tr, columns=ie_tr_col)
+    df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
+    return df
 
-    # 速度観測時点前後のiemgデータ抽出
-    # 速度観測時点前後のiemgデータを1/n_space点ごとに前後各n_for_ti個取得する　データ数は2n+1個
+def pickfortimepoint(ie, n, m):
+    '''
+    速度観測時点前後のiemgデータをm点ごとに前後各n個取得する データ数は2n+1個'''
+    num_trial = ie.shape[0]
+
     iemg_index = [round((i+1)*1000/30) for i in range(30)]  # 速度計測時刻の筋電位観測データインデックス
-    iemg_index = [i if i-(n_for_ti*n_space)>0 else (n_for_ti*n_space) for i in iemg_index]  # インデックスが0を下回るときはminが0になるよう調整
-    iemg_index = [i if i+(n_for_ti*n_space)<1000 else 1000-(n_for_ti*n_space)-1 for i in iemg_index]  # インデックスが1000を越えるときはmaxが1000になるよう調整
-    iemg_index = [[i-(n_for_ti*n_space)+(n_space*j) for j in range(2*n_for_ti+1)] for i in iemg_index]  # indexの二次元配列を得る
+    iemg_index = [i if i-(n*m)>0 else (n*m) for i in iemg_index]  # インデックスが0を下回るときはminが0になるよう調整
+    iemg_index = [i if i+(n*m)<1000 else 1000-(n*m)-1 for i in iemg_index]  # インデックスが1000を越えるときはmaxが1000になるよう調整
+    iemg_index = [[i-(n*m)+(m*j) for j in range(2*n+1)] for i in iemg_index]  # indexの二次元配列を得る
     ie_ti = ie[:,:,iemg_index]
     ie_ti = ie_ti.transpose(0,2,1,3)
     ie_ti = ie_ti.reshape(num_trial*30, -1)
     ie_ti_col = [c+'_iemgti_'+str(i) for c in config.feature_name for i in iemg_index[0]]
 
-    ie_ti_df = pd.DataFrame(ie_ti, columns=ie_ti_col)
-    ie_ti_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
+    df = pd.DataFrame(ie_ti, columns=ie_ti_col)
+    df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
+    return df
 
-    ie_df = pd.merge(ie_tr_df, ie_ti_df, on=['trial', 'timepoint'])
+def iemg(data_myo):
+    num_trial = data_myo.shape[0]
+    df = pd.DataFrame([[t+1, i] for t in range(num_trial) for i in range(30)], columns=['trial', 'timepoint'])
 
-    return ie_df
+    n_pick_tr = 6
+    n_pick_ti = 6
+    n_space_ti = 3
+
+    # iemg計算
+    ie = iemg_core(data_myo)
+    
+    # trialの記述
+    tmp_df = pickfromtrial(ie, n_pick_tr)
+    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+
+    # 速度観測時点前後のiemgデータ抽出
+    tmp_df = pickfortimepoint(ie, n_pick_ti, n_space_ti)
+    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+
+    return df
