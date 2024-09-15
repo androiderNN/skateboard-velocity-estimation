@@ -133,9 +133,16 @@ def rmse_3d(train:pd.DataFrame):
     '''
     3次元rmseの計算
     trainは予測値算出済'''
-    se = np.array([(np.array(train[t]) - np.array(train[t+'_pred']))**2 for t in config.target_name])
-    mse = np.sum(se) / se.shape[1]
-    rmse = mse**0.5
+    errors = list()
+    for s in range(4):
+        tmp = train.loc[train['sid']==s+1]
+        se = np.array([(np.array(tmp[t]) - np.array(tmp[t+'_pred']))**2 for t in config.target_name])
+        mse = se.sum(axis=0).mean()
+        rmse = mse**0.5
+        errors.append(rmse)
+    
+    errors = np.array(errors)
+    rmse = errors.mean()
     return rmse
 
 def main():
