@@ -41,7 +41,7 @@ def pickfromtrial(ie, n):
 
     index = np.array([0] + [int(round((i+1)*1000/(n-1)))-1 for i in range(n-1)])
     ie_tr = ie[:, :, index].reshape(num_trial, -1)
-    ie_tr_col = [c+'_iemgtr_'+str(index[i]) for c in config.feature_name for i in range(n)]
+    ie_tr_col = [c+'_iemgtr_'+str(index[i]+1) for c in config.feature_name for i in range(n)]
 
     ie_tr = np.array([[l]*30 for l in ie_tr])
     ie_tr = ie_tr.reshape(-1, ie_tr.shape[2])
@@ -53,16 +53,23 @@ def pickfromtrial(ie, n):
 def describeiemg(ie):
     '''
     iemgから複数の特徴量を抽出する'''
-    features = ['iemg_coef', 'iemg_inter']  # 傾きと切片
+    # 傾き、決定係数、ピーク数、最大位置、積分
+    features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'integral']
     tmp = np.zeros(shape=(ie.shape[0], ie.shape[1], len(features)), dtype=np.float32)
+
     regressor = LinearRegression()
     x = np.linspace(0, 999, 1000, dtype=np.int32)[:, np.newaxis]
 
     for trial in range(ie.shape[0]):
         for col in range(ie.shape[1]):
+            # 傾き、決定係数
             y = ie[trial, col, :]
             regressor.fit(x, y)
-            tmp[trial, col, :] = regressor.coef_ + regressor.intercept_
+            tmp[trial, col, :2] = [regressor.coef_[0], regressor.score(x, y)]
+
+            tmp[trial, col, 2] = len(signal.find_peaks(y, height=0)[0]) # ピーク数
+            tmp[trial, col, 3] = np.argmax(ie[trial, col, :])   # 最大値の位置
+            tmp[trial, col, 4] = ie[trial, col, :].mean()       # 簡易的な積分
     
     tmp = tmp.reshape((tmp.shape[0], -1))   # colと特徴量を同一次元に
     tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
@@ -109,7 +116,7 @@ def iemg(data_myo):
     df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
 
     # 速度観測時点前後のiemgデータ抽出
-    tmp_df = pickfortimepoint(ie, n_pick_ti, n_space_ti)
-    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+    # tmp_df = pickfortimepoint(ie, n_pick_ti, n_space_ti)
+    # df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
 
     return df
