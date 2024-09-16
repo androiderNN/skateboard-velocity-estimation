@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, pickle
 import numpy as np
 import pandas as pd
 
@@ -67,3 +67,19 @@ def fft_onVelosityTime(data_myo):
     fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
 
     return fft_df
+
+def dump_fft_df():
+    train = pickle.load(open(config.train_path, 'rb'))
+    test = pickle.load(open(config.test_path, 'rb'))
+
+    l = list()
+    for i in range(4):
+        l.append(fft_onVelosityTime(train['000'+str(i+1)][0,0][0]))
+        
+    pickle.dump(l, open(config.fft_train_path, 'wb'))
+
+    l = list()
+    for i in range(4):
+        l.append(fft_onVelosityTime(test['000'+str(i+1)][0,0][0]))
+        
+    pickle.dump(l, open(config.fft_test_path, 'wb'))

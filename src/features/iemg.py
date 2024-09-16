@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, pickle
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -53,8 +53,8 @@ def pickfromtrial(ie, n):
 def describeiemg(ie):
     '''
     iemgから複数の特徴量を抽出する'''
-    # 傾き、決定係数、ピーク数、最大位置、積分
-    features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'integral']
+    # 傾き、決定係数、ピーク数、最大位置、平均
+    features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'mean']
     tmp = np.zeros(shape=(ie.shape[0], ie.shape[1], len(features)), dtype=np.float32)
 
     regressor = LinearRegression()
@@ -69,7 +69,7 @@ def describeiemg(ie):
 
             tmp[trial, col, 2] = len(signal.find_peaks(y, height=0)[0]) # ピーク数
             tmp[trial, col, 3] = np.argmax(ie[trial, col, :])   # 最大値の位置
-            tmp[trial, col, 4] = ie[trial, col, :].mean()       # 簡易的な積分
+            tmp[trial, col, 4] = ie[trial, col, :].mean()       # 平均
     
     tmp = tmp.reshape((tmp.shape[0], -1))   # colと特徴量を同一次元に
     tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
@@ -97,7 +97,7 @@ def pickfortimepoint(ie, n, m):
     df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
     return df
 
-def iemg(data_myo):
+def iemg(data_myo, ie):
     num_trial = data_myo.shape[0]
     df = pd.DataFrame([[t+1, i] for t in range(num_trial) for i in range(30)], columns=['trial', 'timepoint'])
 
@@ -106,7 +106,7 @@ def iemg(data_myo):
     n_space_ti = 3
 
     # iemg計算
-    ie = iemg_core(data_myo)
+    # ie = iemg_core(data_myo)
     
     # trialの記述
     tmp_df = pickfromtrial(ie, n_pick_tr)
@@ -120,3 +120,19 @@ def iemg(data_myo):
     # df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
 
     return df
+
+def dump_iemg():
+    train = pickle.load(open(config.train_path, 'rb'))
+    test = pickle.load(open(config.test_path, 'rb'))
+
+    l = list()
+    for i in range(4):
+        l.append(iemg_core(train['000'+str(i+1)][0,0][0]))
+        
+    pickle.dump(l, open(config.iemg_train_path, 'wb'))
+
+    l = list()
+    for i in range(4):
+        l.append(iemg_core(test['000'+str(i+1)][0,0][0]))
+        
+    pickle.dump(l, open(config.iemg_test_path, 'wb'))

@@ -58,7 +58,7 @@ class modeler_lgb(model_base.base):
                 importance_df.to_csv(os.path.join(self.expath, 'importance.csv'))
 
 if __name__=='__main__':
-    modeler = modeler_lgb(split_by_subject=False, rand=1)
+    modeler = modeler_lgb(split_by_subject=False, rand=1, verbose=True)
     modeler.main()    
 
     # closs validation
