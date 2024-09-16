@@ -8,8 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
 class modeler_lgb(model_base.base):
-    def __init__(self, split_by_subject=False, rand=0):
-        super().__init__(split_by_subject=split_by_subject, rand=rand)
+    def __init__(self, split_by_subject=False, rand=0, index=None, verbose=False):
+        super().__init__(split_by_subject, rand, index, verbose)
 
         self.params = {
             'objective': 'regression',
@@ -45,17 +45,21 @@ class modeler_lgb(model_base.base):
         super().main()
         
         # feature importance出力
-        importance_df = pd.DataFrame( \
-            {t: self.model[i].feature_importance(importance_type='gain') for i, t in enumerate(config.target_name)}, \
-            columns=config.target_name)
-        importance_df['mean'] = importance_df.mean(axis=1)
-        importance_df.insert(0, 'index', self.train.drop(columns=config.drop_list, errors='ignore').columns)
-        importance_df.sort_values('mean', ascending=False, inplace=True)
-        print('\n', importance_df, '\n')
+        if self.verbose:
+            importance_df = pd.DataFrame( \
+                {t: self.model[i].feature_importance(importance_type='gain') for i, t in enumerate(config.target_name)}, \
+                columns=config.target_name)
+            importance_df['mean'] = importance_df.mean(axis=1)
+            importance_df.insert(0, 'index', self.train.drop(columns=config.drop_list, errors='ignore').columns)
+            importance_df.sort_values('mean', ascending=False, inplace=True)
+            print('\n', importance_df, '\n')
 
-        if self.exornot:
-            importance_df.to_csv(os.path.join(self.expath, 'importance.csv'))
+            if self.exornot:
+                importance_df.to_csv(os.path.join(self.expath, 'importance.csv'))
 
 if __name__=='__main__':
     modeler = modeler_lgb(split_by_subject=False, rand=1)
     modeler.main()    
+
+    # closs validation
+    # model_base.train_CV(modeler_lgb, 2, rand=0)

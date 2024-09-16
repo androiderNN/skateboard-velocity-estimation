@@ -1,11 +1,14 @@
-import os, pickle, datetime, json, sys
+import os, pickle, datetime, json, sys, math
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split, GroupKFold
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
+
+train = pickle.load(open(config.train_pkl_path, 'rb'))
+test = pickle.load(open(config.test_pkl_path, 'rb'))
 
 def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
     '''
@@ -32,6 +35,36 @@ def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
     train.drop(columns='trial_id', inplace=True)    # trainは参照なのでtrial_idを削除しておく
 
     return index
+
+def get_kfold_index(train, n_fold=4):
+    '''
+    trainのデータフレームを投げると[train, estop]*n_foldのindexを作成'''
+    sid = train['sid'].tolist()
+    trial = train['trial'].tolist()
+    train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrial_idを作成
+    trial_id = np.unique(np.array(train['trial_id']))
+
+    num_trial_id = len(trial_id)
+    tmp = [0 for _ in range(num_trial_id)]
+    n_ids = math.floor(num_trial_id/n_fold)
+
+    # tmpは0~n_fold-1の整数がランダムにtrial_idの数並んだ配列
+    for i in range(n_fold-1):
+        tmp[(i+1)*n_ids:(i+2)*n_ids] = [i+1]*n_ids
+    tmp = np.array(tmp)
+    np.random.shuffle(tmp)
+
+    va_id_split = [[id for j, id in enumerate(trial_id) if i==tmp[j]] for i in range(n_fold)]    # [[va_ids_0],[va_ids_1]...]
+    
+    index_array = list()    # [[tr_index, va_index]]*n_fold
+    for va_id in va_id_split:
+        tr_index = [id not in va_id for id in train['trial_id']]
+        va_index = [id in va_id for id in train['trial_id']]
+        index_array.append([tr_index, va_index])
+
+    train.drop(columns='trial_id', inplace=True)    # trainは参照なのでtrial_idを削除しておく
+
+    return index_array
 
 def print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred):
     '''
@@ -61,9 +94,7 @@ def makeexportdir():
     now = datetime.datetime.now()
     dirname = 'lgb_' + now.strftime('%m%d_%H:%M:%S')
     dirpath = os.path.join(config.exdir, dirname)
-    os.mkdir(dirpath)   # 出力日時記載のフォルダ作成
     return dirpath
-
 
 def make_submission(test, dirpath):
     '''
@@ -88,16 +119,22 @@ def make_submission(test, dirpath):
     print('\nexport succeed')
 
 class base():
-    def __init__(self, split_by_subject=False, rand=0):
-        self.train = pickle.load(open(config.train_pkl_path, 'rb'))
-        self.test = pickle.load(open(config.test_pkl_path, 'rb'))
+    def __init__(self, split_by_subject, rand, index, verbose=True):
+        self.train = train.copy()
+        self.test = test.copy()
 
         self.split_by_subject = split_by_subject
         self.rand = rand
+        self.verbose = verbose
+
+        if index is None:
+            self.index = get_tr_va_index(self.train, rand=self.rand)
+        else:
+            self.index = index
 
         self.model = None
-        self.exornot = None
         self.expath = None
+        self.exornot = False
 
     def train_fn(self):
         # tr_x, tr_y, va_x, va_yを投げるとモデルを返す関数
@@ -133,13 +170,22 @@ class base():
         print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred)
         return model
 
+    def get_prediction(self):
+        '''
+        self.train, self.testから予測値の列を返す
+        主にKFold用'''
+        cols = [t+'_pred' for t in config.target_name]
+        tr_pred = self.train_pred[cols]
+        te_pred = self.test_pred[cols]
+        return tr_pred, te_pred
+
     def main(self):
         if self.split_by_subject:
             print('split_by_subject :', self.split_by_subject)
     
-        train = self.train
-        test = self.test
-        model = list()
+        train = self.train.copy()
+        test = self.test.copy()
+        self.model = list()
 
         # x, y, zごとのモデル作成と予測
         for target in config.target_name:
@@ -158,32 +204,61 @@ class base():
                     train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
             '''
 
-            index = get_tr_va_index(self.train, rand=self.rand)
-
             if not self.split_by_subject:
                 # 被験者で分割しない場合
-                mod = self.get_model(train, target, index)
+                mod = self.get_model(train, target, self.index)
                 test[target+'_pred'] = self.predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
                 train[target+'_pred'] = self.predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
 
-                model.append(mod)
+                self.model.append(mod)
 
         # rmse出力
-        tr_rmse = rmse_3d(train[index[0]])
+        tr_rmse = rmse_3d(train[self.index[0]])
         print('\ntrain rmse :', tr_rmse)
-        es_rmse = rmse_3d(train[index[1]])
+        es_rmse = rmse_3d(train[self.index[1]])
         print('estop rmse :', es_rmse)
 
-        if len(index)==3:   # validationが設定されているとき
-            va_rmse = rmse_3d(train[index[2]])
+        if len(self.index)==3:   # validationが設定されているとき
+            va_rmse = rmse_3d(train[self.index[2]])
             print('valid rmse  :', va_rmse)
 
         #保存
-        expath = makeexportdir()
-        exornot = input('出力しますか(y/n)')=='y'
-        if exornot:
-            make_submission(test, expath)
+        self.expath = makeexportdir()
+        if self.verbose:
+            self.exornot = input('出力しますか(y/n)')=='y'
+        if self.exornot:
+            os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
+            make_submission(test, self.expath)
 
-        self.model = model
-        self.exornot = exornot
-        self.expath = expath
+        self.train_pred = train[[c+'_pred' for c in config.target_name]]
+        self.test_pred = test[[c+'_pred' for c in config.target_name]]
+
+def train_CV(modeler_class, n_fold, rand):
+    tr = train.copy()
+    te = test.copy()
+    tr_pred, te_pred = list(), list()
+
+    index = get_kfold_index(tr)  # 二次元配列
+
+    for f in range(n_fold):
+        print('\nFold', f)
+        ins = modeler_class(split_by_subject=False, rand=rand, index=index[f], verbose=False)
+        ins.main()
+        pred = ins.get_prediction()
+        tr_pred.append(pred[0])
+        te_pred.append(pred[1])
+    
+    cols = [t+'_pred' for t in config.target_name]
+    tr[cols] = np.array(tr_pred).mean(axis=0)
+    te[cols] = np.array(te_pred).mean(axis=0)
+    print(tr)
+    
+    rmse = rmse_3d(tr)
+    print('\n\ntrain rmse:', rmse)
+
+    #保存
+    exornot = input('出力しますか(y/n)')=='y'
+    if exornot:
+        expath = makeexportdir()
+        os.mkdir(expath)   # 出力日時記載のフォルダ作成
+        make_submission(te, expath)
