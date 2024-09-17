@@ -35,6 +35,20 @@ def convert_y(df, goofy_only:bool):
     
     return df
 
+def onehot(x):
+    '''
+    one-hot encodigする関数
+    一列分のデータを入力するとデータ数*クラス数のndarrayを返す'''
+    x = np.array(x)
+    cl = np.unique(x)
+    array = np.zeros(shape=(x.shape[0], cl.shape[0]))
+
+    for i, c in enumerate(cl):
+        array[x==c, i] = 1
+
+    cl = [str(c) for c in cl]
+    return array, cl
+
 def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie):
     '''
     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
