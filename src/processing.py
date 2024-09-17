@@ -6,6 +6,7 @@ from scipy import signal
 
 import config
 from features import iemg, fft
+from models import clustering
 
 train_raw = pickle.load(open(config.train_path, 'rb'))
 test_raw = pickle.load(open(config.test_path, 'rb'))
@@ -35,21 +36,7 @@ def convert_y(df, goofy_only:bool):
     
     return df
 
-def onehot(x):
-    '''
-    one-hot encodigする関数
-    一列分のデータを入力するとデータ数*クラス数のndarrayを返す'''
-    x = np.array(x)
-    cl = np.unique(x)
-    array = np.zeros(shape=(x.shape[0], cl.shape[0]))
-
-    for i, c in enumerate(cl):
-        array[x==c, i] = 1
-
-    cl = [str(c) for c in cl]
-    return array, cl
-
-def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie):
+def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie, cluster_model):
     '''
     被験者一人当たりのデータを入力するとモデルに入力可能な形式に変換する
     筋電位データと体勢データを展開'''
@@ -64,6 +51,10 @@ def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie):
     # iemg計算
     iemg_df = iemg.iemg(data_myo, ie=ie)
     data_df = pd.merge(data_df, iemg_df, on=['trial', 'timepoint'])
+
+    # iemgクラスタリング
+    clt_df = cluster_model.make_df(ie)
+    data_df = pd.merge(data_df, clt_df, on='trial')
     
     # fft計算
     if fft_df is None:  # fft_dfが与えられていない時は再度作成
@@ -72,7 +63,7 @@ def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie):
 
     return data_df
 
-def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
+def make_data(raw_data:np.array, istrain:bool, fft_df, ie, cluster_model):
     '''
     rawデータを投げるとDataFrameに変換する
     trainデータの場合は速度列も追加して返す'''
@@ -80,7 +71,7 @@ def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
 
     for i in range(4):  # 被験者ごとにprocessに投げる
         sid = '000' + str(i+1)
-        tmp_df = process(raw_data[sid], raw_data[sid][0,0][-2][0]=='regular', i+1, fft_df=fft_df[i], ie=ie[i])
+        tmp_df = process(raw_data[sid], raw_data[sid][0,0][-2][0]=='regular', i+1, fft_df[i], ie[i], cluster_model)
 
         # trainならば速度列をDataframeに追加する
         if istrain:
@@ -94,11 +85,15 @@ def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
 if __name__ == '__main__':
     fft_df = pickle.load(open(config.fft_train_path, 'rb'))
     ie = pickle.load(open(config.iemg_train_path, 'rb'))
-    train_df = make_data(train_raw, True, fft_df, ie)
+
+    iemg_cluster_model = clustering.clustering(num_pick=10, n_clusters=5)
+    iemg_cluster_model.fit(ie)
+
+    train_df = make_data(train_raw, True, fft_df, ie, iemg_cluster_model)
     
     fft_df = pickle.load(open(config.fft_test_path, 'rb'))
     ie = pickle.load(open(config.iemg_test_path, 'rb'))
-    test_df = make_data(test_raw, False, fft_df, ie)
+    test_df = make_data(test_raw, False, fft_df, ie, iemg_cluster_model)
 
     pickle.dump(train_df, open(config.train_pkl_path, 'wb'))
     pickle.dump(test_df, open(config.test_pkl_path, 'wb'))
