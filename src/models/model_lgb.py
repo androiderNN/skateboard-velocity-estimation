@@ -52,7 +52,7 @@ class modeler_lgb(model_base.base):
             importance_df['mean'] = importance_df.mean(axis=1)
             importance_df.insert(0, 'index', self.train.drop(columns=config.drop_list, errors='ignore').columns)
             importance_df.sort_values('mean', ascending=False, inplace=True)
-            print('\n', importance_df, '\n')
+            print('\n', importance_df.head(10), '\n')
 
             if self.exornot:
                 importance_df.to_csv(os.path.join(self.expath, 'importance.csv'))

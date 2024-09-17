@@ -4,6 +4,7 @@ import pandas as pd
 from scipy import signal
 from sklearn.linear_model import LinearRegression
 
+from . import fft
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
@@ -79,6 +80,16 @@ def describeiemg(ie):
     df[['trial', 'timepoint']] = [[t+1, i] for t in range(ie.shape[0]) for i in range(30)]
     return df
 
+def fft_iemg(ie):
+    '''
+    フィルタ後のiemgをフーリエ変換する'''
+    ie_fft = fft.fft_core(ie)[:,:,:2]  # ローパスフィルタをかけているのでフーリエ変換後2,4Hzのみ抜きだす
+    ie_fft = ie_fft.reshape(ie_fft.shape[0], -1)    # (trial, features*2)
+
+    ie_fft_df = pd.DataFrame(ie_fft, columns=['iemg_'+f+'_'+str(i) for f in config.feature_name for i in range(2,5,2)])
+    ie_fft_df['trial'] = [i+1 for i in range(ie_fft.shape[0])]
+    return ie_fft_df
+
 def pickfortimepoint(ie, n, m):
     '''
     速度観測時点前後のiemgデータをm点ごとに前後各n個取得する データ数は2n+1個'''
@@ -114,6 +125,9 @@ def iemg(data_myo, ie):
 
     tmp_df = describeiemg(ie)
     df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+
+    # tmp_df = fft_iemg(ie)
+    # df = pd.merge(df, tmp_df, on='trial')
 
     # 速度観測時点前後のiemgデータ抽出
     # tmp_df = pickfortimepoint(ie, n_pick_ti, n_space_ti)

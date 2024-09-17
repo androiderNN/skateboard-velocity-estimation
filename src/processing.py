@@ -53,8 +53,8 @@ def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie, cluster_mode
     data_df = pd.merge(data_df, iemg_df, on=['trial', 'timepoint'])
 
     # iemgクラスタリング
-    clt_df = cluster_model.make_df(ie)
-    data_df = pd.merge(data_df, clt_df, on='trial')
+    # clt_df = cluster_model.make_df(ie)
+    # data_df = pd.merge(data_df, clt_df, on='trial')
     
     # fft計算
     if fft_df is None:  # fft_dfが与えられていない時は再度作成
