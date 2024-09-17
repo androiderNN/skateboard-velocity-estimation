@@ -4,7 +4,8 @@ import pandas as pd
 from scipy import signal
 from sklearn.linear_model import LinearRegression
 
-from . import fft
+sys.path.append(os.path.dirname(__file__))
+import fft
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 

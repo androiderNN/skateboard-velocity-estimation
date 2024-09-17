@@ -2,6 +2,8 @@ import os, sys, pickle
 import numpy as np
 import pandas as pd
 
+sys.path.append(os.path.dirname(__file__))
+import process_core
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
@@ -57,12 +59,15 @@ def fft_onVelosityTime(data_myo):
     # 周波数のndarrayをDataFrameに変換
     fft_reshaped = fft.reshape(fft.shape[0], fft.shape[1], -1)   # colとfreqを同一次元に
     fft_reshaped = fft_reshaped.reshape(-1, fft_reshaped.shape[-1])    # trialとtimepointを同一次元に
-    col = [c+'_fft'+str(f) for c in config.feature_name for f in freq]
+    fft_col = [c+'_fft'+str(f) for c in config.feature_name for f in freq]
 
-    fft_df = pd.DataFrame(fft_reshaped, columns=col)
-    
+    fft_df = pd.DataFrame(fft_reshaped, columns=fft_col)
+
     # 各colのfft平均を挿入
     fft_df[['fft_dens_'+col for col in config.feature_name]] = fft.mean(axis=3).reshape(-1, fft.shape[2])
+
+    # 次元圧縮
+    fft_df = process_core.compress(fft_df, fft_col, 100, 'fft')
 
     fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
 
