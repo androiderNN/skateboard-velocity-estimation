@@ -10,10 +10,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 from features import process_core
 
-def clustering_kmeans(x, n_clusters=5):
+def clustering_kmeans(x, n_clusters):
     '''
     k-最近傍法でクラスタリング'''
-    km = KMeans(n_clusters=n_clusters)
+    km = KMeans(n_clusters=n_clusters, n_init='auto')
     km.fit(x)
     clt = km.predict(x)
     return km, clt
@@ -35,7 +35,7 @@ def calc_dist(x):
     n_clustersに応じた重心までの距離の平方和を描画する
     n_clusterの最適化に'''
     dist = list()
-    K = range(1,10)
+    K = range(1,20)
 
     for k in K:
         km, _ = clustering_kmeans(x, k)
@@ -46,7 +46,10 @@ def calc_dist(x):
     plt.ylabel('distortion')
     plt.show()
 
-class clustering():
+class clustering_iemg():
+    '''
+    部位ごとの筋電位データをクラスタリングする
+    特徴量は16*クラス数'''
     def __init__(self, num_pick=10, n_clusters=5):
         self.clt_fn = clustering_kmeans
         self.clt_model = None   # クラスタリングを行うモデル
@@ -105,3 +108,58 @@ class clustering():
         clt_df['trial'] = [i+1 for i in range(len(clt_df))]
 
         return clt_df
+
+class clustering_trial():
+    '''
+    各trialをクラスタリングするクラス
+    特徴量はクラス数個'''
+    def __init__(self, num_pick=10, n_clusters=5):
+        self.clt_fn = clustering_kmeans
+        self.clt_model = None   # クラスタリングを行うモデル
+
+        self.num_pick = num_pick
+        self.n_clusters = n_clusters
+
+    def pick(self, ie, num_pick, sid=None):
+        '''
+        1000点から均等にnum_pickを抽出してdataframeに変換する
+        dataframeとカラム名を返す'''
+        # 抽出
+        num_trial = ie.shape[0]
+        index = [0] + [round((i+1)*ie.shape[2]/(num_pick-1))-1 for i in range(num_pick-1)]
+        ie = ie[:,:,index]
+        ie = ie.reshape(ie.shape[0], -1)   # colとpickを同一次元に (trial, features*num_pick)
+
+        # dataframeに変換
+        col = [c+'_iemg_pick_'+str(i) for c in config.feature_name for i in range(num_pick)]
+        ie_df = pd.DataFrame(ie, columns=col)
+        ie_df['trial'] = [t+1 for t in range(num_trial)]
+
+        if sid is not None:
+            ie_df['sid'] = sid
+
+        return ie_df, col
+
+    def convert(self, ie_array):
+        '''
+        4人分のiemgデータを処理して連結'''
+        df = pd.DataFrame()
+
+        for i in range(4):
+            tmp, col = self.pick(ie_array[i], self.num_pick, sid=i+1)
+            df = pd.concat([df, tmp])
+        
+        return df, col
+
+    def fit(self, ie_array):
+        tmp_df, col = self.convert(ie_array)
+        self.clt_model, _ = self.clt_fn(tmp_df[col], n_clusters=self.n_clusters)
+    
+    def make_df(self, ie):
+        '''
+        一人分のieを入力するとクラスタリング後のラベルdfを出力する'''
+        tmp_df, col = self.pick(ie, self.num_pick)
+        clt = self.clt_model.predict(tmp_df[col])
+        tmp_df[['clt_'+str(i) for i in range(self.n_clusters)]] = process_core.onehot(clt)[0]
+        tmp_df.drop(columns=col, inplace=True)  # trial, col, sid, クラスタリング後のonehotラベル列　(16*trials,n_clusters+3) 
+        return tmp_df

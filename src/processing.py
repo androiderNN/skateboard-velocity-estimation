@@ -86,7 +86,7 @@ if __name__ == '__main__':
     fft_df = pickle.load(open(config.fft_train_path, 'rb'))
     ie = pickle.load(open(config.iemg_train_path, 'rb'))
 
-    iemg_cluster_model = clustering.clustering(num_pick=10, n_clusters=5)
+    iemg_cluster_model = clustering.clustering_trial(num_pick=10, n_clusters=3)
     iemg_cluster_model.fit(ie)
 
     train_df = make_data(train_raw, True, fft_df, ie, iemg_cluster_model)
