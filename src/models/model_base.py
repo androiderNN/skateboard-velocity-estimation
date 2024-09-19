@@ -36,7 +36,7 @@ def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
 
     return index
 
-def get_kfold_index(train, n_fold=4):
+def get_kfold_index(train, n_fold=4, rand=0):
     '''
     trainのデータフレームを投げると[train, estop]*n_foldのindexを作成'''
     sid = train['sid'].tolist()
@@ -184,7 +184,7 @@ class cv_training():
             pred.append(modeler.predict(x))
         
         pred = np.array(pred)
-        pred = pred.mean(axis=1)
+        pred = pred.mean(axis=0)
         return pred
 
     def main(self, train, col, target, test):
@@ -192,11 +192,11 @@ class cv_training():
         trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
         # valid分割
         tr_idx, va_idx = get_tr_va_index(train, es_size=0.1, rand=0)
-        tr = train[tr_idx]  # 学習用データ
-        va = train[va_idx]  # バリデーション用データ
+        tr = train[tr_idx].copy()  # 学習用データ
+        va = train[va_idx].copy()  # バリデーション用データ
 
         # fold分割
-        index_array = get_kfold_index(tr, n_fold=4)
+        index_array = get_kfold_index(tr, n_fold=4, rand=self.rand)
 
         for i, index in enumerate(index_array):
             print('\nFold', i+1)
@@ -204,7 +204,7 @@ class cv_training():
             es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
 
             # 学習
-            modeler = self.mdr()
+            modeler = self.mdr(rand=self.rand)
             modeler.train(tr_x, tr_y, es_x, es_y)
 
             # スコア出力
@@ -221,16 +221,17 @@ class cv_training():
         # スコア出力
         print('\nmean prediction')
         train_pred = self.predict(tr[col])
-        train_score = self.score_fn(tr[col], train_pred)
+        train_score = self.score_fn(tr[target], train_pred)
         print('train score :', train_score)
 
         valid_pred = self.predict(va[col])
-        valid_score = self.score_fn(va[col], valid_pred)
-        print('valid score :', valid_score)
+        valid_score = self.score_fn(va[target], valid_pred)
+        print('valid score :', valid_score, '\n')
 
         # testデータの予測
-        test_pred = self.predict(test)
-        return test_pred
+        train_pred = self.predict(train[col])
+        test_pred = self.predict(test[col])
+        return train_pred, test_pred
 
 class vel_prediction():
     def __init__(self, modeler, split_by_subject, rand, use_cv=False, verbose=True):
@@ -252,43 +253,46 @@ class vel_prediction():
         if self.split_by_subject:
             print('split_by_subject :', self.split_by_subject)
         
+        # trainerの定義
         if self.use_cv: # cross validation
-            pass
+            trainer_class = cv_training
         else:   # hold out
-            # x, y, zごとのモデル作成と予測
-            for target in config.target_name:
-                print('\ntarget :', target)
+            trainer_class = holdout_training
 
-                # 被験者ごとのモデル作成と予測
-                '''if split_by_subject:
-                    for sid in range(4):
-                        sid = sid + 1
-                        print('\n被験者id :', sid)
-                        train_tmp = train.loc[train['sid']==sid].copy()
+        # x, y, zごとのモデル作成と予測
+        for target in config.target_name:
+            print('\ntarget :', target)
 
-                        mod = get_model(train_tmp, target)
-                        
-                        test.loc[test['sid']==sid, target+'_pred'] = self.predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
-                        train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
-                '''
+            # 被験者ごとのモデル作成と予測
+            '''if split_by_subject:
+                for sid in range(4):
+                    sid = sid + 1
+                    print('\n被験者id :', sid)
+                    train_tmp = train.loc[train['sid']==sid].copy()
 
-                if not self.split_by_subject:   # 被験者で分割しない場合
-                    # trainerの定義
-                    trainer = holdout_training(self.modeler, score_fn=mean_squared_error, rand=self.rand)
+                    mod = get_model(train_tmp, target)
+                    
+                    test.loc[test['sid']==sid, target+'_pred'] = self.predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
+                    train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
+            '''
 
-                    # 学習・予測
-                    tr_pred, te_pred = trainer.main(train, self.col, target, test)
-                    self.train_pred[target+'_pred'] = tr_pred
-                    self.test_pred[target+'_pred'] = te_pred
+            if not self.split_by_subject:   # 被験者で分割しない場合
+                # trainerの定義 cv_trainerまたはholdout_trainer
+                trainer = trainer_class(self.modeler, score_fn=mean_squared_error, rand=self.rand)
 
-                    self.trainer_array.append(trainer)
+                # 学習・予測
+                tr_pred, te_pred = trainer.main(train, self.col, target, test)
+                self.train_pred[target+'_pred'] = tr_pred
+                self.test_pred[target+'_pred'] = te_pred
 
-            # rmse出力
-            index = get_tr_va_index(train, rand=self.rand)  # trainer内で使用したものと同じインデックスを得る
-            tr_rmse = rmse_3d(self.train_pred[index[0]])
-            print('\ntrain rmse :', tr_rmse)
-            es_rmse = rmse_3d(self.train_pred[index[1]])
-            print('estop rmse :', es_rmse)
+                self.trainer_array.append(trainer)
+
+        # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
+        index = get_tr_va_index(train, rand=0)
+        tr_rmse = rmse_3d(self.train_pred[index[0]])
+        print('\ntrain rmse :', tr_rmse)
+        es_rmse = rmse_3d(self.train_pred[index[1]])
+        print('validation rmse :', es_rmse)
 
         #保存
         self.expath = makeexportdir()
