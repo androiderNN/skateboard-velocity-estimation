@@ -5,7 +5,7 @@ from scipy import io as sio
 from scipy import signal
 
 import config
-from features import iemg, fft
+from features import iemg, fft, process_core
 from models import clustering
 
 train_raw = pickle.load(open(config.train_path, 'rb'))
@@ -60,6 +60,10 @@ def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie, cluster_mode
     if fft_df is None:  # fft_dfが与えられていない時は再度作成
         fft_df = fft.fft_onVelosityTime(data_myo)
     data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
+
+    # sidのonehot encoding
+    sid, cl = process_core.onehot(data_df['sid'])
+    data_df[cl] = sid
 
     return data_df
 
