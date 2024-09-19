@@ -7,10 +7,11 @@ import model_base
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
-class modeler_lgb(model_base.base):
-    def __init__(self, split_by_subject=False, rand=0, index=None, verbose=False):
-        super().__init__(split_by_subject, rand, index, verbose)
+class modeler_lgb(model_base.modeler_base):
+    def __init__(self, rand, verbose=True):
+        self.model = None
 
+        self.verbose = verbose
         self.params = {
             'objective': 'regression',
             'metric': 'rmse',
@@ -21,45 +22,22 @@ class modeler_lgb(model_base.base):
             'bagging_freq': 1
         }
 
-    def train_fn(self, tr_x, tr_y, va_x, va_y):
-        '''
-        trainとvalidのDataframeを投げるとlightgbmのモデルを返す'''        
+    def train(self, tr_x, tr_y, es_x, es_y):
         tr_lgb = lgb.Dataset(tr_x, tr_y)
-        va_lgb = lgb.Dataset(va_x, va_y)
+        es_lgb = lgb.Dataset(es_x, es_y)
 
-        model = lgb.train(
+        self.model = lgb.train(
             params=self.params,
             train_set=tr_lgb,
             num_boost_round=1000,
-            valid_sets=va_lgb,
-            valid_names=['train', 'valid'],
-            callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=True)]
+            valid_sets=es_lgb,
+            valid_names=['train', 'estop'],
+            callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=self.verbose)]
         )
-
-        return model
-
-    def predict(self, model, x:pd.DataFrame):
-        return model.predict(x.drop(columns=config.drop_list, errors='ignore'))
-
-    def main(self):
-        super().main()
-        
-        # feature importance出力
-        if self.verbose:
-            importance_df = pd.DataFrame( \
-                {t: self.model[i].feature_importance(importance_type='gain') for i, t in enumerate(config.target_name)}, \
-                columns=config.target_name)
-            importance_df['mean'] = importance_df.mean(axis=1)
-            importance_df.insert(0, 'index', self.train.drop(columns=config.drop_list, errors='ignore').columns)
-            importance_df.sort_values('mean', ascending=False, inplace=True)
-            print('\n', importance_df.head(10), '\n')
-
-            if self.exornot:
-                importance_df.to_csv(os.path.join(self.expath, 'importance.csv'))
+    
+    def predict(self, x):
+        return self.model.predict(x)
 
 if __name__=='__main__':
-    modeler = modeler_lgb(split_by_subject=False, rand=0, verbose=True)
-    modeler.main()    
-
-    # closs validation
-    # model_base.train_CV(modeler_lgb, 2, rand=0)
+    ins = model_base.vel_prediction(modeler_lgb, split_by_subject=False, rand=0, use_cv=False)
+    ins.main()

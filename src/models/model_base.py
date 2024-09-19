@@ -118,147 +118,182 @@ def make_submission(test, dirpath):
     json.dump(dic, open(os.path.join(dirpath, 'submission.json'), 'w'))
     print('\nexport succeed')
 
-class base():
-    def __init__(self, split_by_subject, rand, index, verbose=True):
-        self.train = train.copy()
-        self.test = test.copy()
+class modeler_base():
+    '''
+    各機械学習アルゴリズムの最も単純なラッパ'''
+    def __init__(self):
+        self.model = None
 
+    def train(self, tr_x, tr_y, va_x, va_y):
+        '''
+        モデルを学習する関数'''
+        pass
+
+    def predict(self, x):
+        '''
+        xを渡すと予測値を返す関数'''
+        pass
+
+class holdout_training():
+    def __init__(self, modeler, score_fn, rand=0):
+        '''
+        hold-outで学習・予測・スコア算出を行うクラス
+        modeler : modeler_baseを継承したクラス
+        score_fn : y, y_predを入力するとスカラーのスコアを返す関数'''
+        self.modeler = modeler(rand=rand)
+        self.score_fn = score_fn
+        self.rand = rand
+
+    def main(self, train, col, target, test):
+        '''
+        関数内でインデックス分割、学習、スコア出力、testデータの予測出力まで行う'''
+        # データ分割
+        index = get_tr_va_index(train, rand=self.rand)
+        tr_x, tr_y = train.loc[index[0], col], train.loc[index[0], target]
+        es_x, es_y = train.loc[index[1], col], train.loc[index[1], target]
+
+        # 学習
+        self.modeler.train(tr_x, tr_y, es_x, es_y)
+
+        # スコア出力
+        tr_pred = self.modeler.predict(tr_x)
+        tr_score = self.score_fn(tr_y, tr_pred)
+        print('train score :', tr_score)
+        es_pred = self.modeler.predict(es_x)
+        es_score = self.score_fn(es_y, es_pred)
+        print('estop score :', es_score)
+
+        # 予測
+        train_pred = self.modeler.predict(train[col])
+        test_pred = self.modeler.predict(test[col])
+        return train_pred, test_pred
+
+class cv_training():
+    def __init__(self, modeler, score_fn, rand=0):
+        self.mdr = modeler
+        self.modelers = list()
+        self.score_fn = score_fn
+        self.rand = rand
+
+    def predict(self, x):
+        '''
+        xを投げると各foldのモデルで予測し平均値を予測値として返す'''
+        pred = list()
+
+        for modeler in self.modelers:
+            pred.append(modeler.predict(x))
+        
+        pred = np.array(pred)
+        pred = pred.mean(axis=1)
+        return pred
+
+    def main(self, train, col, target, test):
+        '''
+        trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
+        # valid分割
+        tr_idx, va_idx = get_tr_va_index(train, es_size=0.1, rand=0)
+        tr = train[tr_idx]  # 学習用データ
+        va = train[va_idx]  # バリデーション用データ
+
+        # fold分割
+        index_array = get_kfold_index(tr, n_fold=4)
+
+        for i, index in enumerate(index_array):
+            print('\nFold', i+1)
+            tr_x, tr_y = tr.loc[index[0], col], tr.loc[index[0], target]    # fold内での学習用データ
+            es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
+
+            # 学習
+            modeler = self.mdr()
+            modeler.train(tr_x, tr_y, es_x, es_y)
+
+            # スコア出力
+            tr_pred = modeler.predict(tr_x)
+            tr_score = self.score_fn(tr_y, tr_pred)
+            print('train score :', tr_score)
+
+            es_pred = modeler.predict(es_x)
+            es_score = self.score_fn(es_y, es_pred)
+            print('estop score :', es_score)
+
+            self.modelers.append(modeler)
+
+        # スコア出力
+        print('\nmean prediction')
+        train_pred = self.predict(tr[col])
+        train_score = self.score_fn(tr[col], train_pred)
+        print('train score :', train_score)
+
+        valid_pred = self.predict(va[col])
+        valid_score = self.score_fn(va[col], valid_pred)
+        print('valid score :', valid_score)
+
+        # testデータの予測
+        test_pred = self.predict(test)
+        return test_pred
+
+class vel_prediction():
+    def __init__(self, modeler, split_by_subject, rand, use_cv=False, verbose=True):
         self.split_by_subject = split_by_subject
         self.rand = rand
+        self.use_cv = use_cv
         self.verbose = verbose
 
-        if index is None:
-            self.index = get_tr_va_index(self.train, rand=self.rand)
-        else:
-            self.index = index
-
-        self.model = None
+        self.col = [c for c in train.columns if c not in config.drop_list]
+        self.modeler = modeler
         self.expath = None
         self.exornot = False
 
-    def train_fn(self):
-        # tr_x, tr_y, va_x, va_yを投げるとモデルを返す関数
-        pass
-
-    def predict(self):
-        # model, xを投げると予測値を返す関数
-        pass
-
-    def get_model(self, train, target, index):
-        '''
-        train、予測対象、インデックスのarrayを投げると予測値を追加したtestを返す
-        インデックスは[train, valid, test]の形式
-        get_tr_va_indexで得られる形式'''
-        x = train.drop(columns=config.drop_list, errors='ignore')
-        y = train[target]
-
-        # trainとvalidの分割
-        tr_x, tr_y = x[index[0]], y[index[0]]
-        es_x, es_y = x[index[1]], y[index[1]]
-
-        # 学習と予測
-        model = self.train_fn(tr_x, tr_y, es_x, es_y)
-        tr_pred = self.predict(model, tr_x)
-        es_pred = self.predict(model, es_x)
-
-        va_y, va_pred = None, None
-        # validのインデックスが分割されているとき
-        if len(index) == 3:
-            va_x, va_y = x[index[2]], y[index[2]]
-            va_pred = self.predict(model, va_x)
-
-        print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred)
-        return model
-
-    def get_prediction(self):
-        '''
-        self.train, self.testから予測値の列を返す
-        主にKFold用'''
-        cols = [t+'_pred' for t in config.target_name]
-        tr_pred = self.train_pred[cols]
-        te_pred = self.test_pred[cols]
-        return tr_pred, te_pred
+        self.trainer_array = list()
+        self.train_pred = train.loc[:, ['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z']]
+        self.test_pred = test.loc[:, ['sid', 'trial', 'timepoint']]
 
     def main(self):
         if self.split_by_subject:
             print('split_by_subject :', self.split_by_subject)
-    
-        train = self.train.copy()
-        test = self.test.copy()
-        self.model = list()
+        
+        if self.use_cv: # cross validation
+            pass
+        else:   # hold out
+            # x, y, zごとのモデル作成と予測
+            for target in config.target_name:
+                print('\ntarget :', target)
 
-        # x, y, zごとのモデル作成と予測
-        for target in config.target_name:
-            print('\ntarget :', target)
+                # 被験者ごとのモデル作成と予測
+                '''if split_by_subject:
+                    for sid in range(4):
+                        sid = sid + 1
+                        print('\n被験者id :', sid)
+                        train_tmp = train.loc[train['sid']==sid].copy()
 
-            # 被験者ごとのモデル作成と予測
-            '''if split_by_subject:
-                for sid in range(4):
-                    sid = sid + 1
-                    print('\n被験者id :', sid)
-                    train_tmp = train.loc[train['sid']==sid].copy()
+                        mod = get_model(train_tmp, target)
+                        
+                        test.loc[test['sid']==sid, target+'_pred'] = self.predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
+                        train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
+                '''
 
-                    mod = get_model(train_tmp, target)
-                    
-                    test.loc[test['sid']==sid, target+'_pred'] = self.predict(mod, test.loc[test['sid']==sid].drop(columns=config.drop_list, errors='ignore'))
-                    train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
-            '''
+                if not self.split_by_subject:   # 被験者で分割しない場合
+                    # trainerの定義
+                    trainer = holdout_training(self.modeler, score_fn=mean_squared_error, rand=self.rand)
 
-            if not self.split_by_subject:
-                # 被験者で分割しない場合
-                mod = self.get_model(train, target, self.index)
-                test[target+'_pred'] = self.predict(mod, test.drop(columns=config.drop_list, errors='ignore'))
-                train[target+'_pred'] = self.predict(mod, train.drop(columns=config.drop_list, errors='ignore'))
+                    # 学習・予測
+                    tr_pred, te_pred = trainer.main(train, self.col, target, test)
+                    self.train_pred[target+'_pred'] = tr_pred
+                    self.test_pred[target+'_pred'] = te_pred
 
-                self.model.append(mod)
+                    self.trainer_array.append(trainer)
 
-        # rmse出力
-        tr_rmse = rmse_3d(train[self.index[0]])
-        print('\ntrain rmse :', tr_rmse)
-        es_rmse = rmse_3d(train[self.index[1]])
-        print('estop rmse :', es_rmse)
-
-        if len(self.index)==3:   # validationが設定されているとき
-            va_rmse = rmse_3d(train[self.index[2]])
-            print('valid rmse  :', va_rmse)
+            # rmse出力
+            index = get_tr_va_index(train, rand=self.rand)  # trainer内で使用したものと同じインデックスを得る
+            tr_rmse = rmse_3d(self.train_pred[index[0]])
+            print('\ntrain rmse :', tr_rmse)
+            es_rmse = rmse_3d(self.train_pred[index[1]])
+            print('estop rmse :', es_rmse)
 
         #保存
         self.expath = makeexportdir()
         if self.verbose:
-            self.exornot = input('出力しますか(y/n)')=='y'
+            self.exornot = input('\n出力しますか(y/n)')=='y'
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
-            make_submission(test, self.expath)
-
-        self.train_pred = train[[c+'_pred' for c in config.target_name]]
-        self.test_pred = test[[c+'_pred' for c in config.target_name]]
-
-def train_CV(modeler_class, n_fold, rand):
-    tr = train.copy()
-    te = test.copy()
-    tr_pred, te_pred = list(), list()
-
-    index = get_kfold_index(tr)  # 二次元配列
-
-    for f in range(n_fold):
-        print('\nFold', f)
-        ins = modeler_class(split_by_subject=False, rand=rand, index=index[f], verbose=False)
-        ins.main()
-        pred = ins.get_prediction()
-        tr_pred.append(pred[0])
-        te_pred.append(pred[1])
-    
-    cols = [t+'_pred' for t in config.target_name]
-    tr[cols] = np.array(tr_pred).mean(axis=0)
-    te[cols] = np.array(te_pred).mean(axis=0)
-    print(tr)
-    
-    rmse = rmse_3d(tr)
-    print('\n\ntrain rmse:', rmse)
-
-    #保存
-    exornot = input('出力しますか(y/n)')=='y'
-    if exornot:
-        expath = makeexportdir()
-        os.mkdir(expath)   # 出力日時記載のフォルダ作成
-        make_submission(te, expath)
+            make_submission(self.test_pred, self.expath)
