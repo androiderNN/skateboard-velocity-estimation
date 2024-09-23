@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import lightgbm as lgb
 
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 import model_base
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config

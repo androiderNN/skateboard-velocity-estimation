@@ -55,6 +55,14 @@ def process_trial(data_sub:np.array, isregular:bool, sid:int, ie, cluster_model)
     # iemgクラスタリング
     # clt_df = cluster_model.make_df(ie)
     # data_df = pd.merge(data_df, clt_df, on='trial')
+
+    # fft計算
+    # fft_array = fft.fft_core(data_myo)[:,:,:31]
+    # fft_array = fft_array.reshape(fft_array.shape[0], -1)
+    # freq = fft.get_freq(data_myo)[:31]
+    # fft_df = pd.DataFrame(fft_array, columns=[c+str(f) for c in config.feature_name for f in freq])
+    # fft_df['trial'] = [t+1 for t in range(num_trial)]
+    # data_df = pd.merge(data_df, fft_df, on='trial')
     
     # sidのonehot encoding
     sid, cl = process_core.onehot(data_df['sid'])
