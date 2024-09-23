@@ -36,6 +36,13 @@ def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
 
     return index
 
+#     '''
+#     trial%10==0のデータをバリデーションに使用'''
+#     tr_index = train['trial']%10!=2
+#     es_index = train['trial']%10==2
+
+#     return [tr_index, es_index]
+
 def get_kfold_index(train, n_fold=4, rand=0):
     '''
     trainのデータフレームを投げると[train, estop]*n_foldのindexを作成'''
@@ -73,6 +80,9 @@ def print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred):
     print('estop :', mean_squared_error(es_y, es_pred)**0.5)
     if (va_y is not None) and (va_pred is not None):
         print('valid :', mean_squared_error(va_y, va_pred)**0.5)
+
+def rmse(y, y_pred):
+    return mean_squared_error(y, y_pred)**0.5
 
 def rmse_3d(train:pd.DataFrame):
     '''
@@ -123,6 +133,8 @@ class modeler_base():
     各機械学習アルゴリズムの最も単純なラッパ'''
     def __init__(self):
         self.model = None
+        self.params = None
+        self.rand = None
 
     def train(self, tr_x, tr_y, va_x, va_y):
         '''
@@ -135,12 +147,12 @@ class modeler_base():
         pass
 
 class holdout_training():
-    def __init__(self, modeler, score_fn, rand=0):
+    def __init__(self, modeler, params, score_fn, rand=0):
         '''
         hold-outで学習・予測・スコア算出を行うクラス
         modeler : modeler_baseを継承したクラス
         score_fn : y, y_predを入力するとスカラーのスコアを返す関数'''
-        self.modeler = modeler(rand=rand)
+        self.modeler = modeler(params=params, rand=rand)
         self.score_fn = score_fn
         self.rand = rand
 
@@ -169,9 +181,10 @@ class holdout_training():
         return train_pred, test_pred
 
 class cv_training():
-    def __init__(self, modeler, score_fn, rand=0):
+    def __init__(self, modeler, params, score_fn, rand=0):
         self.mdr = modeler
         self.modelers = list()
+        self.params = params
         self.score_fn = score_fn
         self.rand = rand
 
@@ -204,7 +217,7 @@ class cv_training():
             es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
 
             # 学習
-            modeler = self.mdr(rand=self.rand)
+            modeler = self.mdr(params=self.params, rand=self.rand)
             modeler.train(tr_x, tr_y, es_x, es_y)
 
             # スコア出力
@@ -234,11 +247,12 @@ class cv_training():
         return train_pred, test_pred
 
 class vel_prediction():
-    def __init__(self, modeler, split_by_subject, rand, use_cv=False, verbose=True):
-        self.split_by_subject = split_by_subject
+    def __init__(self, modeler, params, rand, use_cv=False, verbose=True, split_by_subject=False):
+        self.params = params
         self.rand = rand
         self.use_cv = use_cv
         self.verbose = verbose
+        self.split_by_subject = split_by_subject
 
         self.col = [c for c in train.columns if c not in config.drop_list]
         self.modeler = modeler
@@ -278,7 +292,7 @@ class vel_prediction():
 
             if not self.split_by_subject:   # 被験者で分割しない場合
                 # trainerの定義 cv_trainerまたはholdout_trainer
-                trainer = trainer_class(self.modeler, score_fn=mean_squared_error, rand=self.rand)
+                trainer = trainer_class(self.modeler, self.params, score_fn=rmse, rand=self.rand)
 
                 # 学習・予測
                 tr_pred, te_pred = trainer.main(train, self.col, target, test)
@@ -288,7 +302,7 @@ class vel_prediction():
                 self.trainer_array.append(trainer)
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
-        index = get_tr_va_index(train, rand=0)
+        index = get_tr_va_index(train, rand=self.rand)
         tr_rmse = rmse_3d(self.train_pred[index[0]])
         print('\ntrain rmse :', tr_rmse)
         es_rmse = rmse_3d(self.train_pred[index[1]])

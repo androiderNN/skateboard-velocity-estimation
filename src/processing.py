@@ -63,7 +63,8 @@ def process(data_sub:np.array, isregular:bool, sid:int, fft_df, ie, cluster_mode
 
     # sidのonehot encoding
     sid, cl = process_core.onehot(data_df['sid'])
-    data_df[cl] = sid
+    cl = ['sid_'+i for i in cl]
+    data_df[cl] = pd.DataFrame(sid)
 
     return data_df
 
