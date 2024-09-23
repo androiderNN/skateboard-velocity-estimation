@@ -45,18 +45,19 @@ def pickfromtrial(ie, n):
     ie_tr = ie[:, :, index].reshape(num_trial, -1)
     ie_tr_col = [c+'_iemgtr_'+str(index[i]+1) for c in config.feature_name for i in range(n)]
 
-    ie_tr = np.array([[l]*30 for l in ie_tr])
-    ie_tr = ie_tr.reshape(-1, ie_tr.shape[2])
+    # ie_tr = np.array([l for l in ie_tr])
+    # ie_tr = ie_tr.reshape(-1, ie_tr.shape[2])
 
     df = pd.DataFrame(ie_tr, columns=ie_tr_col)
-    df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]
+    df['trial'] = [tr+1 for tr in range(num_trial)]
     return df
 
 def describeiemg(ie):
     '''
     iemgから複数の特徴量を抽出する'''
     # 傾き、決定係数、ピーク数、最大位置、平均
-    features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'mean']
+    # features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'mean']
+    features = ['iemg_coef', 'R^2', 'peak_posit', 'mean']
     tmp = np.zeros(shape=(ie.shape[0], ie.shape[1], len(features)), dtype=np.float32)
 
     regressor = LinearRegression()
@@ -69,16 +70,16 @@ def describeiemg(ie):
             regressor.fit(x, y)
             tmp[trial, col, :2] = [regressor.coef_[0], regressor.score(x, y)]
 
-            tmp[trial, col, 2] = len(signal.find_peaks(y, height=0)[0]) # ピーク数
+            tmp[trial, col, 2] = ie[trial, col, :].mean()       # 平均
             tmp[trial, col, 3] = np.argmax(ie[trial, col, :])   # 最大値の位置
-            tmp[trial, col, 4] = ie[trial, col, :].mean()       # 平均
+            # tmp[trial, col, 4] = len(signal.find_peaks(y, height=0)[0]) # ピーク数
     
     tmp = tmp.reshape((tmp.shape[0], -1))   # colと特徴量を同一次元に
-    tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
-    tmp = tmp.reshape((-1, tmp.shape[2]))
+    # tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
+    # tmp = tmp.reshape((-1, tmp.shape[2]))
     df_col = [f+'_'+c for f in config.feature_name for c in features]
     df = pd.DataFrame(tmp, columns=df_col)
-    df[['trial', 'timepoint']] = [[t+1, i] for t in range(ie.shape[0]) for i in range(30)]
+    df['trial'] = [t+1 for t in range(ie.shape[0])]
     return df
 
 def fft_iemg(ie):
@@ -111,7 +112,7 @@ def pickfortimepoint(ie, n, m):
 
 def iemg(data_myo, ie):
     num_trial = data_myo.shape[0]
-    df = pd.DataFrame([[t+1, i] for t in range(num_trial) for i in range(30)], columns=['trial', 'timepoint'])
+    df = pd.DataFrame([t+1 for t in range(num_trial)], columns=['trial'])
 
     n_pick_tr = 6
     n_pick_ti = 6
@@ -122,10 +123,10 @@ def iemg(data_myo, ie):
     
     # trialの記述
     tmp_df = pickfromtrial(ie, n_pick_tr)
-    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+    df = pd.merge(df, tmp_df, on='trial')
 
     tmp_df = describeiemg(ie)
-    df = pd.merge(df, tmp_df, on=['trial', 'timepoint'])
+    df = pd.merge(df, tmp_df, on='trial')
 
     # tmp_df = fft_iemg(ie)
     # df = pd.merge(df, tmp_df, on='trial')

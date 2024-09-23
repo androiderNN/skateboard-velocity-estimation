@@ -32,9 +32,6 @@ class modeler_lgb(model_base.modeler_base):
 if __name__=='__main__':
     rand = 0
     params = {
-        'rand': rand,
-        'use_cv': False,
-        'verbose': False,
         'lgb_params': {
             'objective': 'regression',
             'metric': 'rmse',

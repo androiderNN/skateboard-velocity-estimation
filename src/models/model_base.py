@@ -7,8 +7,8 @@ from sklearn.metrics import mean_squared_error
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
-train = pickle.load(open(config.train_pkl_path, 'rb'))
-test = pickle.load(open(config.test_pkl_path, 'rb'))
+train = pickle.load(open(config.train_path, 'rb'))
+test = pickle.load(open(config.test_path, 'rb'))
 
 def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
     '''
@@ -36,12 +36,12 @@ def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
 
     return index
 
-#     '''
-#     trial%10==0のデータをバリデーションに使用'''
-#     tr_index = train['trial']%10!=2
-#     es_index = train['trial']%10==2
+    # '''
+    # trial%10==0のデータをバリデーションに使用'''
+    # tr_index = train['trial']%10!=2
+    # es_index = train['trial']%10==2
 
-#     return [tr_index, es_index]
+    # return [tr_index, es_index]
 
 def get_kfold_index(train, n_fold=4, rand=0):
     '''
