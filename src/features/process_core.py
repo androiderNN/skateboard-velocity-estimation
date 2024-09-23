@@ -17,10 +17,17 @@ def onehot(x):
     cl = [str(c) for c in cl]
     return array, cl
 
-def compress(df, cols, n_components, colname=''):
+def compress(train, test, cols, n_components, colname='fft'):
+    if len(cols)!=16*31:
+        print('対象のcolumnが間違っている可能性あり')
+
     model = PCA(n_components)
-    compressed_data = model.fit_transform(df[cols])
-    df.drop(columns=cols, inplace=True)
-    # df[[colname+'_comp_'+str(i) for i in range(n_components)]] = compressed_data
-    df = pd.concat([df, pd.DataFrame(compressed_data, columns=[colname+'_comp_'+str(i) for i in range(n_components)])], axis=1)
-    return df
+    model.fit(train[cols])
+
+    for df in [train, test]:
+        compressed = model.transform(df[cols])
+        df.drop(columns=cols, inplace=True)
+        df = pd.concat([df, pd.DataFrame(compressed, columns=[colname+'_comp_'+str(i) for i in range(n_components)])], axis=1)
+
+    return train, test
+
