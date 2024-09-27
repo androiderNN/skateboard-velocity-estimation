@@ -65,9 +65,11 @@ def process_trial(data_sub:np.array, isregular:bool, sid:int, ie, cluster_model)
     # data_df = pd.merge(data_df, fft_df, on='trial')
     
     # sidのonehot encoding
-    sid, cl = process_core.onehot(data_df['sid'])
-    cl = ['sid_'+i for i in cl]
-    data_df[cl] = pd.DataFrame(sid)
+    # sid, cl = process_core.onehot(data_df['sid'])
+    # cl = ['sid_'+i for i in cl]
+    # # data_df[cl] = pd.DataFrame(sid)
+    # print(sid.shape)
+    # data_df[cl] = sid
 
     return data_df
 
@@ -105,6 +107,15 @@ def make_data(raw_data:np.array, istrain:bool, fft_df, ie, cluster_model):
         
         timepoint_df = pd.concat([timepoint_df, tmp_df])
     
+    # sidのonehot encoding
+    sid, cl = process_core.onehot(timepoint_df['sid'])
+    cl = ['sid_'+i for i in cl]
+    timepoint_df[cl] = sid
+    
+    sid, cl = process_core.onehot(trial_df['sid'])
+    cl = ['sid_'+i for i in cl]
+    trial_df[cl] = sid
+
     trial_df.reset_index(inplace=True, drop=True)
     timepoint_df.reset_index(inplace=True, drop=True)
     return trial_df, timepoint_df
