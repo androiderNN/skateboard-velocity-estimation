@@ -156,10 +156,11 @@ class holdout_training():
         self.score_fn = score_fn
         self.rand = rand
 
-    def main(self, train, col, index, target, test):
+    def main(self, train, col, target, test, index=None):
         '''
         関数内でインデックス分割、学習、スコア出力、testデータの予測出力まで行う'''
         # データ分割
+        index = get_tr_va_index(train, rand=self.rand) if index is None else index
         tr_x, tr_y = train.loc[index[0], col], train.loc[index[0], target]
         es_x, es_y = train.loc[index[1], col], train.loc[index[1], target]
 
@@ -199,10 +200,11 @@ class cv_training():
         pred = pred.mean(axis=0)
         return pred
 
-    def main(self, train, col, index, target, test):
+    def main(self, train, col, target, test, index=None):
         '''
         trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
         # valid分割
+        index = get_tr_va_index(train, rand=self.rand) if index is None else index
         tr_idx, va_idx = index
         tr = train[tr_idx].copy()  # 学習用データ
         va = train[va_idx].copy()  # バリデーション用データ
@@ -294,8 +296,7 @@ class vel_prediction():
                 trainer = trainer_class(self.modeler, self.params, score_fn=rmse, rand=self.rand)
 
                 # 学習・予測
-                index = get_tr_va_index(train, rand=self.rand)
-                tr_pred, te_pred = trainer.main(train, self.col, index, target, test)
+                tr_pred, te_pred = trainer.main(train, self.col, target, test)
                 self.train_pred[target+'_pred'] = tr_pred
                 self.test_pred[target+'_pred'] = te_pred
 

@@ -65,10 +65,7 @@ def fft_onVelosityTime(data_myo):
 
     # 各colのfft平均を挿入
     fft_df[['fft_dens_'+col for col in config.feature_name]] = fft.mean(axis=3).reshape(-1, fft.shape[2])
-
-    # 次元圧縮
-    # fft_df = process_core.compress(fft_df, fft_col, 100, 'fft')
-
+    
     fft_df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(fft.shape[0]) for ti in range(fft.shape[1])]
 
     return fft_df
