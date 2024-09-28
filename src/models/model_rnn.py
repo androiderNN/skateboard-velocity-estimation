@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, pprint
 import numpy as np
 import pandas as pd
 import torch
@@ -43,14 +43,13 @@ class gru(nn.Module):
         return x
 
 class modeler_rnn(model_base.modeler_base):
-    def __init__(self, params, rand, verbose=True):
+    def __init__(self, params):
         self.params = params
-        self.verbose = verbose
 
         self.model = None
         self.optimizer = None
-        # self.loss_fn = nn.MSELoss()
-        self.loss_fn = nn.L1Loss()
+        self.loss_fn = nn.MSELoss()
+        # self.loss_fn = nn.L1Loss()
     
     def train_loop(self, dataloader):
         self.model.train()
@@ -99,7 +98,9 @@ class modeler_rnn(model_base.modeler_base):
 
         for epoch in range(self.params['num_epoch']):
             self.train_loop(train_dataloader)
-            self.test_loop(estop_dataloader)
+
+            if epoch%10 == 0:
+                self.test_loop(estop_dataloader)
 
     def predict(self, x):
         self.model.eval()

@@ -134,7 +134,6 @@ class modeler_base():
     def __init__(self):
         self.model = None
         self.params = None
-        self.rand = None
 
     def train(self, tr_x, tr_y, va_x, va_y):
         '''
@@ -147,20 +146,20 @@ class modeler_base():
         pass
 
 class holdout_training():
-    def __init__(self, modeler, params, score_fn, rand=0):
+    def __init__(self, modeler, params, score_fn):
         '''
         hold-outで学習・予測・スコア算出を行うクラス
         modeler : modeler_baseを継承したクラス
         score_fn : y, y_predを入力するとスカラーのスコアを返す関数'''
-        self.modeler = modeler(params=params, rand=rand)
+        self.modeler = modeler(params=params)
+        self.params = params
         self.score_fn = score_fn
-        self.rand = rand
 
     def main(self, train, col, target, test, index=None):
         '''
         関数内でインデックス分割、学習、スコア出力、testデータの予測出力まで行う'''
         # データ分割
-        index = get_tr_va_index(train, rand=self.rand) if index is None else index
+        index = get_tr_va_index(train, rand=self.params['rand']) if index is None else index
         tr_x, tr_y = train.loc[index[0], col], train.loc[index[0], target]
         es_x, es_y = train.loc[index[1], col], train.loc[index[1], target]
 
@@ -181,12 +180,11 @@ class holdout_training():
         return train_pred, test_pred
 
 class cv_training():
-    def __init__(self, modeler, params, score_fn, rand=0):
+    def __init__(self, modeler, params, score_fn):
         self.mdr = modeler
         self.modelers = list()
         self.params = params
         self.score_fn = score_fn
-        self.rand = rand
 
     def predict(self, x):
         '''
@@ -204,13 +202,13 @@ class cv_training():
         '''
         trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
         # valid分割
-        index = get_tr_va_index(train, rand=self.rand) if index is None else index
+        index = get_tr_va_index(train, rand=self.params['rand']) if index is None else index
         tr_idx, va_idx = index
         tr = train[tr_idx].copy()  # 学習用データ
         va = train[va_idx].copy()  # バリデーション用データ
 
         # fold分割
-        index_array = get_kfold_index(tr, n_fold=4, rand=self.rand)
+        index_array = get_kfold_index(tr, n_fold=4, rand=self.params['rand'])
 
         for i, index in enumerate(index_array):
             print('\nFold', i+1)
@@ -218,7 +216,7 @@ class cv_training():
             es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
 
             # 学習
-            modeler = self.mdr(params=self.params, rand=self.rand)
+            modeler = self.mdr(params=self.params)
             modeler.train(tr_x, tr_y, es_x, es_y)
 
             # スコア出力
@@ -248,12 +246,8 @@ class cv_training():
         return train_pred, test_pred
 
 class vel_prediction():
-    def __init__(self, modeler, params, rand, use_cv=False, verbose=True, split_by_subject=False):
+    def __init__(self, modeler, params):
         self.params = params
-        self.rand = rand
-        self.use_cv = use_cv
-        self.verbose = verbose
-        self.split_by_subject = split_by_subject
 
         self.col = [c for c in train.columns if c not in config.drop_list]
         self.modeler = modeler
@@ -265,11 +259,11 @@ class vel_prediction():
         self.test_pred = test.loc[:, ['sid', 'trial', 'timepoint']]
 
     def main(self):
-        if self.split_by_subject:
+        if self.params['split_by_subject']:
             print('split_by_subject :', self.split_by_subject)
         
         # trainerの定義
-        if self.use_cv: # cross validation
+        if self.params['use_cv']: # cross validation
             trainer_class = cv_training
         else:   # hold out
             trainer_class = holdout_training
@@ -291,9 +285,9 @@ class vel_prediction():
                     train.loc[train['sid']==sid, target+'_pred'] = self.predict(mod, train_tmp)
             '''
 
-            if not self.split_by_subject:   # 被験者で分割しない場合
+            if not self.params['split_by_subject']:   # 被験者で分割しない場合
                 # trainerの定義 cv_trainerまたはholdout_trainer
-                trainer = trainer_class(self.modeler, self.params, score_fn=rmse, rand=self.rand)
+                trainer = trainer_class(self.modeler, self.params, score_fn=rmse)
 
                 # 学習・予測
                 tr_pred, te_pred = trainer.main(train, self.col, target, test)
@@ -303,7 +297,7 @@ class vel_prediction():
                 self.trainer_array.append(trainer)
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
-        index = get_tr_va_index(train, rand=self.rand)
+        index = get_tr_va_index(train, rand=self.params['rand'])
         tr_rmse = rmse_3d(self.train_pred[index[0]])
         print('\ntrain rmse :', tr_rmse)
         es_rmse = rmse_3d(self.train_pred[index[1]])
@@ -311,7 +305,7 @@ class vel_prediction():
 
         #保存
         self.expath = makeexportdir()
-        if self.verbose:
+        if self.params['verbose']:
             self.exornot = input('\n出力しますか(y/n)')=='y'
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成

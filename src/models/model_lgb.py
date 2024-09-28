@@ -9,10 +9,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
 class modeler_lgb(model_base.modeler_base):
-    def __init__(self, params, rand, verbose=True):
+    def __init__(self, params):
         self.model = None
         self.params = params
-        self.verbose = verbose
 
     def train(self, tr_x, tr_y, es_x, es_y):
         tr_lgb = lgb.Dataset(tr_x, tr_y)
@@ -24,7 +23,7 @@ class modeler_lgb(model_base.modeler_base):
             num_boost_round=1000,
             valid_sets=es_lgb,
             valid_names=['train', 'estop'],
-            callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=self.verbose)]
+            callbacks=[lgb.early_stopping(stopping_rounds=3, verbose=self.params['verbose'])]
         )
     
     def predict(self, x):
@@ -33,6 +32,10 @@ class modeler_lgb(model_base.modeler_base):
 if __name__=='__main__':
     rand = 0
     params = {
+        'rand': rand,
+        'use_cv': False,
+        'verbose': True,
+        'split_by_subject': False,
         'lgb_params': {
             'objective': 'regression',
             'metric': 'rmse',
@@ -44,5 +47,5 @@ if __name__=='__main__':
         }
     }
 
-    ins = model_base.vel_prediction(modeler_lgb, params=params, rand=rand, use_cv=False)
+    ins = model_base.vel_prediction(modeler_lgb, params=params)
     ins.main()

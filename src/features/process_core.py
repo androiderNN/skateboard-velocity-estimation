@@ -36,3 +36,11 @@ def compress(train, test, cols, n_components, colname='fft'):
 
     return train, test
 
+def normalize(train, test, cols):
+    mean = train[cols].mean()
+    std = train[cols].std()
+
+    train = (train - mean) / std
+    test = (test - mean) / std
+
+    return train, test
