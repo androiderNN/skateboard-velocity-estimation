@@ -40,7 +40,7 @@ def normalize(train, test, cols):
     mean = train[cols].mean()
     std = train[cols].std()
 
-    train = (train - mean) / std
-    test = (test - mean) / std
+    train[cols] = (train[cols] - mean) / std
+    test[cols] = (test[cols] - mean) / std
 
     return train, test

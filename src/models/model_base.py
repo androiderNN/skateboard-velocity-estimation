@@ -6,6 +6,8 @@ from sklearn.metrics import mean_squared_error
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'features'))
+import process_core
 
 train = pickle.load(open(config.train_path, 'rb'))
 test = pickle.load(open(config.test_path, 'rb'))
@@ -159,6 +161,10 @@ class holdout_training():
     def main(self, train, col, target, test, index=None):
         '''
         関数内でインデックス分割、学習、スコア出力、testデータの予測出力まで行う'''
+        if self.params['normalize']:
+            cols = train.drop(columns=config.drop_list, errors='ignore').columns.tolist()
+            train, test = process_core.normalize(train, test, cols)
+        
         # データ分割
         index = get_tr_va_index(train, rand=self.params['rand']) if index is None else index
         tr_x, tr_y = train.loc[index[0], col], train.loc[index[0], target]
@@ -202,6 +208,10 @@ class cv_training():
     def main(self, train, col, target, test, index=None):
         '''
         trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
+        if self.params['normalize']:
+            cols = train.drop(columns=config.drop_list, errors='ignore').columns.tolist()
+            train, test = process_core.normalize(train, test, cols)
+
         # valid分割
         index = get_tr_va_index(train, rand=self.params['rand']) if index is None else index
         tr_idx, va_idx = index
