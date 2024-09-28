@@ -102,9 +102,9 @@ def rmse_3d(train:pd.DataFrame):
     rmse = errors.mean()
     return rmse
 
-def makeexportdir():
+def makeexportdir(type:str):
     now = datetime.datetime.now()
-    dirname = 'lgb_' + now.strftime('%m%d_%H:%M:%S')
+    dirname = type + '_' + now.strftime('%m%d_%H:%M:%S')
     dirpath = os.path.join(config.exdir, dirname)
     return dirpath
 
@@ -315,7 +315,7 @@ class vel_prediction():
         print('validation rmse :', es_rmse)
 
         #保存
-        self.expath = makeexportdir()
+        self.expath = makeexportdir(self.params['modeltype'])
         if self.params['verbose']:
             self.exornot = input('\n出力しますか(y/n)')=='y'
         if self.exornot:
@@ -323,6 +323,7 @@ class vel_prediction():
             make_submission(self.test_pred, self.expath)
 
 default_params = {
+    'modeltype': None,               # 'lgb'など
     'rand': 0,                  # シード
     'use_cv': False,            # cross validationの使用可否
     'verbose': True,            # 出力の可否

@@ -34,6 +34,7 @@ if __name__=='__main__':
     rand = 0
     params = model_base.default_params
     params.update({
+        'modeltype': 'lgb',
         'rand': rand,
         'use_cv': False,
         'verbose': True,
