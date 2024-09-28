@@ -20,7 +20,7 @@ def get_tr_va_index(train, es_size=0.1, va_size=0, rand=0):
     
     sid = train['sid'].tolist()
     trial = train['trial'].tolist()
-    train['trial_id'] = [str(sid[i])+'_'+str(trial[i]) for i in range(len(train))]    # sidとtrialでtrial_idを作成
+    train = pd.concat([train, pd.DataFrame([str(sid[i])+'_'+str(trial[i]) for i in range(len(train))], columns=['trial_id'])], axis=1)    # sidとtrialでtrial_idを作成
     trial_id = np.unique(np.array(train['trial_id']))
     tr_id, es_id = train_test_split(trial_id, test_size=es_size, random_state=rand, shuffle=True)
 
