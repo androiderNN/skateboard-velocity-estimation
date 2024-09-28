@@ -131,9 +131,10 @@ def make_submission(test, dirpath):
 class modeler_base():
     '''
     各機械学習アルゴリズムの最も単純なラッパ'''
-    def __init__(self):
+    def __init__(self, modeler_params, rand):
         self.model = None
         self.params = None
+        self.rand = rand
 
     def train(self, tr_x, tr_y, va_x, va_y):
         '''
@@ -151,7 +152,7 @@ class holdout_training():
         hold-outで学習・予測・スコア算出を行うクラス
         modeler : modeler_baseを継承したクラス
         score_fn : y, y_predを入力するとスカラーのスコアを返す関数'''
-        self.modeler = modeler(params=params)
+        self.modeler = modeler(params=params['modeler_params'], rand=params['rand'])
         self.params = params
         self.score_fn = score_fn
 
@@ -216,7 +217,7 @@ class cv_training():
             es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
 
             # 学習
-            modeler = self.mdr(params=self.params)
+            modeler = self.mdr(params=self.params['modeler_params'], rand=self.params['rand'])
             modeler.train(tr_x, tr_y, es_x, es_y)
 
             # スコア出力
@@ -310,3 +311,12 @@ class vel_prediction():
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
             make_submission(self.test_pred, self.expath)
+
+default_params = {
+    'rand': 0,                  # シード
+    'use_cv': False,            # cross validationの使用可否
+    'verbose': True,            # 出力の可否
+    'normalize': False,         # データの標準化可否
+    'split_by_subject': False,
+    'modeler_params': None      # modelerに渡すパラメータ
+}

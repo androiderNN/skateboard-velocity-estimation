@@ -43,8 +43,9 @@ class gru(nn.Module):
         return x
 
 class modeler_rnn(model_base.modeler_base):
-    def __init__(self, params):
+    def __init__(self, params, rand):
         self.params = params
+        self.rand = rand
 
         self.model = None
         self.optimizer = None
