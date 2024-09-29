@@ -1,4 +1,4 @@
-import os, sys, pprint
+import os, sys, math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -107,8 +107,6 @@ class modeler_rnn(model_base.modeler_base):
         return rmse
 
     def train(self, tr_x, tr_y, es_x, es_y):
-        # print(tr_x.iloc[:,-5:])
-        # tr_x.fillna(0, inplace=True)
         self.params['rnn_params']['input_size'] = tr_x.shape[1]
 
         # self.model = simplernn(self.params['rnn_params'])
@@ -125,6 +123,7 @@ class modeler_rnn(model_base.modeler_base):
 
         # 記録用ndarray
         self.log = np.zeros((self.params['num_epoch'], 2))
+        ep = max(math.ceil(self.params['num_epoch']/10), 1)
 
         for epoch in range(self.params['num_epoch']):
             self.train_loop(train_dataloader)
@@ -132,7 +131,7 @@ class modeler_rnn(model_base.modeler_base):
             self.log[epoch, 0] = self.test_loop(train_dataloader)
             self.log[epoch, 1] = self.test_loop(estop_dataloader)
 
-            if epoch%(self.params['num_epoch']//10) == 0:
+            if epoch%ep == 0:
                 print(f'estop rmse: {self.log[epoch, 1]} [{epoch}/{self.params["num_epoch"]}]')
         
         # 学習曲線描画
