@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
-import model_base
+import model_base, model_torch_base
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 
@@ -15,6 +15,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class cnnDataset(Dataset):
     def __init__(self, x, y, loss_seq):
+        '''
+        cnn用データセットクラス
+        '''
         x = np.array(x)
         x = x.reshape((int(x.shape[0]/30), 30, -1))  # (trial, timepoint, features)に変換
         x = x.transpose(0,2,1)  # cnnの入力に合わせ(trial, feature, timepoint)に変換
@@ -37,13 +40,6 @@ class cnnDataset(Dataset):
         out_y = self.y[i]
         return out_x, out_y
 
-class RMSELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, pred, y):
-        return ((pred - y)**2).mean() **0.5
-
 class cnn(nn.Module):
     def __init__(self, params):
         super().__init__()
@@ -58,75 +54,25 @@ class cnn(nn.Module):
         x = self.linear(x)
         return x
 
-class modeler_cnn(model_base.modeler_base):
+class modeler_cnn(model_torch_base.modeler_torch):
     def __init__(self, params, rand):
-        self.params = params
-        self.rand = rand
+        super().__init__(params, rand)
+        self.model_class = cnn
+        self.dataset_class = cnnDataset
 
-        self.model = None
-        self.optimizer = None
         self.loss_fn = nn.MSELoss()
         # self.loss_fn = nn.L1Loss()
         # self.loss_fn = RMSELoss()
 
-        self.loss_seq = self.params['cnn_params']['kernel_size'] - 1    # cnnによるシーケンスの縮小幅
+        self.loss_seq = self.params['model_params']['kernel_size'] - 1    # cnnによるシーケンスの縮小幅
     
-    def train_loop(self, dataloader):
-        self.model.train()
-        for x, y in dataloader:
-            pred = self.model(x)
-            loss = self.loss_fn(pred, y)
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
-    def test_loop(self, dataloader):
-        self.model.eval()
-        truth = list()
-        pred = list()
-        
-        for x, y in dataloader:
-            truth.extend(y.detach().numpy().flatten())
-            pred.extend(self.model(x).detach().numpy().flatten())
-        
-        truth = np.array(truth)
-        pred = np.array(pred)
-        rmse = model_base.rmse(pred, truth)
-        return rmse
-
     def train(self, tr_x, tr_y, es_x, es_y):
-        self.params['cnn_params']['in_channels'] = tr_x.shape[1]
+        self.params['model_params']['in_channels'] = tr_x.shape[1]
 
-        self.model = cnn(self.params['cnn_params'])
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.params['lr'])
+        tr_dataset = cnnDataset(tr_x, tr_y, self.loss_seq)
+        es_dataset = cnnDataset(es_x, es_y, self.loss_seq)
 
-        # データローダー
-        train_dataset = cnnDataset(tr_x, tr_y, self.loss_seq)
-        estop_dataset = cnnDataset(es_x, es_y, self.loss_seq)
-
-        train_dataloader = DataLoader(train_dataset, batch_size=self.params['batch_size'], shuffle=True)
-        estop_dataloader = DataLoader(estop_dataset, batch_size=self.params['batch_size'], shuffle=True)
-
-        # 記録用ndarray
-        self.log = np.zeros((self.params['num_epoch'], 2))
-        ep = max(math.ceil(self.params['num_epoch']/10), 1)
-
-        for epoch in range(self.params['num_epoch']):
-            self.train_loop(train_dataloader)
-
-            self.log[epoch, 0] = self.test_loop(train_dataloader)
-            self.log[epoch, 1] = self.test_loop(estop_dataloader)
-
-            if epoch%(ep) == 0:
-                print(f'estop rmse: {self.log[epoch, 1]} [{epoch}/{self.params["num_epoch"]}]')
-        
-        # 学習曲線描画
-        plt.figure(figsize=(5,3))
-        plt.xlabel('epochs')
-        plt.ylabel('rmse')
-        plt.plot(self.log)
-        plt.show()
+        super().train(tr_dataset, es_dataset)
 
     def predict(self, x):
         self.model.eval()
@@ -134,7 +80,6 @@ class modeler_cnn(model_base.modeler_base):
         x = np.array(x)
         x = x.reshape((int(x.shape[0]/30), 30, -1))  # (trial, timepoint, features)に変換
         x = x.transpose(0,2,1)  # cnnの入力サイズ
-        print(x.shape)
         x = torch.tensor(x, dtype=torch.float32)
 
         pred = self.model(x).detach().numpy()
@@ -145,3 +90,23 @@ class modeler_cnn(model_base.modeler_base):
         pred = pred.flatten()
         pred = [float(p) for p in pred]
         return pred
+
+if __name__=='__main__':
+    params = {
+        'modeltype': 'cnn',
+        'rand': 0,
+        'use_cv': False,
+        'normalize': True,
+        'verbose': True,
+        'split_by_subject': False,
+        'modeler_params': {
+            'num_epoch': 18,
+            'batch_size': 10,
+            'lr': 1e-3,
+            'verbose': False,
+            'model_params': {'in_channels': None, 'out_channels': 10, 'kernel_size': 5, 'p_dropout':0.3}
+        }
+    }
+
+    predictor = model_base.vel_prediction(modeler_cnn, params)
+    predictor.main()
