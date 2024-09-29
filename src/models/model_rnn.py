@@ -32,6 +32,13 @@ class customDataset(Dataset):
         out_y = self.y[i]
         return out_x, out_y
 
+class RMSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, pred, y):
+        return ((pred - y)**2).mean() **0.5
+
 class simplernn(nn.Module):
     def __init__(self, params):
         super().__init__()
@@ -80,6 +87,7 @@ class modeler_rnn(model_base.modeler_base):
         self.optimizer = None
         # self.loss_fn = nn.MSELoss()
         self.loss_fn = nn.L1Loss()
+        # self.loss_fn = RMSELoss()
     
     def train_loop(self, dataloader):
         self.model.train()
