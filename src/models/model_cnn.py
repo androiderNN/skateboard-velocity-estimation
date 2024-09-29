@@ -44,11 +44,13 @@ class cnn(nn.Module):
     def __init__(self, params):
         super().__init__()
         self.conv = nn.Conv1d(params['in_channels'], params['out_channels'], params['kernel_size'])
+        self.bn = nn.BatchNorm1d(params['out_channels'])
         self.dropout = nn.Dropout(p = params['p_dropout'])
         self.linear = nn.Linear(params['out_channels'], 1)
 
     def forward(self, x):
         x = self.conv(x)
+        x = self.bn(x)
         x = torch.permute(x, (0,2,1))   # (batch, feature, sequence) -> (b, s, f)
         x = self.dropout(x)
         x = self.linear(x)

@@ -44,6 +44,8 @@ class RMSELoss(nn.Module):
 
 class modeler_torch(model_base.modeler_base):
     def __init__(self, params, rand):
+        '''
+        model_class, dataset_class, loss_fnが必要'''
         self.params = params
         self.rand = rand
 
@@ -97,7 +99,7 @@ class modeler_torch(model_base.modeler_base):
             self.log[epoch, 0] = self.test_loop(train_dataloader)
             self.log[epoch, 1] = self.test_loop(estop_dataloader)
 
-            if epoch%ep == 0:
+            if epoch%ep==0:
                 print(f'estop rmse: {self.log[epoch, 1]} [{epoch}/{self.params["num_epoch"]}]')
         
         # 学習曲線描画
