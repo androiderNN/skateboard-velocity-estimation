@@ -21,7 +21,7 @@ def get_filter(lowcut, fs, order):
     b, a = signal.butter(order, low, btype='low')
     return b, a
 
-def apply_filter(x):
+def apply_filter(x, lowcut=lowcut):
     '''
     フィルタを適用する関数'''
     b, a = get_filter(lowcut, fs, order)
@@ -29,11 +29,12 @@ def apply_filter(x):
     y = y/y.max()   # 最大値で除して正規化
     return y
 
-def iemg_core(data_myo):
+def iemg_core(data_myo, lowcut=lowcut):
     '''
     一人分の筋電位データを入力するとフィルタ適用後の筋電位データを出力する'''
     data_myo = abs(data_myo)
-    data_myo = np.apply_along_axis(apply_filter, 2, data_myo)
+    # data_myo = np.apply_along_axis(apply_filter, 2, data_myo)
+    data_myo = np.array([[apply_filter(data_myo[i,j,:], lowcut) for j in range(data_myo.shape[1])] for i in range(data_myo.shape[0])])
     return data_myo
 
 def pickfromtrial(ie, n):
