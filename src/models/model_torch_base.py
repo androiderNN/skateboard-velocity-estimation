@@ -43,6 +43,8 @@ class RMSELoss(nn.Module):
         return ((pred - y)**2).mean() **0.5
 
 class modeler_torch(model_base.modeler_base):
+    '''
+    predictメソッドの定義'''
     def __init__(self, params, rand):
         '''
         model_class, dataset_class, loss_fnが必要'''

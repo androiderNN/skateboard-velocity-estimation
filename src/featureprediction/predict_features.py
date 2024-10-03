@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 from processing import process_core
-sys.path.append(os.path.join(os.path.dirname(__file__)))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'models'))
 import model_lgb, model_base
 
 train = pickle.load(open(config.train_path, 'rb'))
