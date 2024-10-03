@@ -14,7 +14,7 @@ import config
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class cnnDataset(Dataset):
-    def __init__(self, x, y, loss_seq):
+    def __init__(self, x, y):
         '''
         cnn用データセットクラス
         '''
@@ -24,10 +24,6 @@ class cnnDataset(Dataset):
 
         y = np.array(y)
         y = y.reshape((int(y.shape[0]/30), 30, -1))
-
-        # cnnのkernel_sizeに応じて出力のシーケンス長が変化するのでyを合わせる
-        out_seq = 30 - loss_seq    # 出力シーケンス長
-        y = y[:,-out_seq:,:]
 
         self.x = torch.tensor(x, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32)
@@ -43,7 +39,7 @@ class cnnDataset(Dataset):
 class cnn(nn.Module):
     def __init__(self, params):
         super().__init__()
-        self.conv = nn.Conv1d(params['in_channels'], params['out_channels'], params['kernel_size'])
+        self.conv = nn.Conv1d(params['in_channels'], params['out_channels'], params['kernel_size'], padding=2)
         self.bn = nn.BatchNorm1d(params['out_channels'])
         self.dropout = nn.Dropout(p = params['p_dropout'])
         self.linear = nn.Linear(params['out_channels'], 1)
@@ -66,13 +62,11 @@ class modeler_cnn(model_torch_base.modeler_torch):
         # self.loss_fn = nn.L1Loss()
         # self.loss_fn = RMSELoss()
 
-        self.loss_seq = self.params['model_params']['kernel_size'] - 1    # cnnによるシーケンスの縮小幅
-    
     def train(self, tr_x, tr_y, es_x, es_y):
         self.params['model_params']['in_channels'] = tr_x.shape[1]
 
-        tr_dataset = cnnDataset(tr_x, tr_y, self.loss_seq)
-        es_dataset = cnnDataset(es_x, es_y, self.loss_seq)
+        tr_dataset = cnnDataset(tr_x, tr_y)
+        es_dataset = cnnDataset(es_x, es_y)
 
         super().train(tr_dataset, es_dataset)
 
@@ -85,10 +79,6 @@ class modeler_cnn(model_torch_base.modeler_torch):
         x = torch.tensor(x, dtype=torch.float32)
 
         pred = self.model(x).detach().numpy()
-
-        # 縮小幅の復元
-        pred = pred.reshape(pred.shape[0], pred.shape[1])
-        pred = np.array([np.concatenate([np.array([p.mean()]*self.loss_seq), p]) for p in pred])    # ！縮小幅を埋める
         pred = pred.flatten()
         pred = [float(p) for p in pred]
         return pred
