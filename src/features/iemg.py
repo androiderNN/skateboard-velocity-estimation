@@ -139,8 +139,8 @@ def iemg(data_myo, ie):
     return df
 
 def dump_iemg():
-    train = pickle.load(open(config.train_path, 'rb'))
-    test = pickle.load(open(config.test_path, 'rb'))
+    train = pickle.load(open(config.train_raw_path, 'rb'))
+    test = pickle.load(open(config.test_raw_path, 'rb'))
 
     l = list()
     for i in range(4):

@@ -18,9 +18,6 @@ def onehot(x):
     return array, cl
 
 def compress(train, test, cols, n_components, colname='fft'):
-    train = train.copy()
-    test = test.copy()
-
     if len(cols)!=16*31:
         print('対象のcolumnが間違っている可能性あり')
 
@@ -33,8 +30,6 @@ def compress(train, test, cols, n_components, colname='fft'):
         df = pd.concat([df, pd.DataFrame(compressed, columns=[colname+'_comp_'+str(i) for i in range(n_components)])], axis=1)
 
     # print(pd.DataFrame(model.explained_variance_ratio_).cumsum())
-
-    return train, test
 
 def normalize(train, test, cols):
     mean = train[cols].mean()

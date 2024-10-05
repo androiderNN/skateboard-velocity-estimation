@@ -2,8 +2,8 @@ import os
 
 fdir = '../data'
 exdir = '../export'
-train_raw_path = os.path.join(fdir, 'raws', 'train.pkl')
-test_raw_path = os.path.join(fdir, 'raws', 'test.pkl')
+train_raw_path = os.path.join(fdir, 'raws', 'train.mat')
+test_raw_path = os.path.join(fdir, 'raws', 'test.mat')
 
 iemg_train_path = os.path.join(fdir, 'tmp', 'iemg_train.pkl')
 iemg_test_path = os.path.join(fdir, 'tmp', 'iemg_test.pkl')
