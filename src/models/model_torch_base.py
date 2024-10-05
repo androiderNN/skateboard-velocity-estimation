@@ -61,7 +61,7 @@ class modeler_torch(model_base.modeler_base):
         self.model.train()
         for batch, (x, y) in enumerate(dataloader):
             pred = self.model(x)
-            loss = self.loss_fn(pred, y)
+            loss = self.loss_fn(pred.flatten(), y.flatten())
 
             self.optimizer.zero_grad()
             loss.backward()
