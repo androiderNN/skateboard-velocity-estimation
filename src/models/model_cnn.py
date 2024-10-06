@@ -55,7 +55,7 @@ class cnn(nn.Module):
 class modeler_cnn(model_torch_base.modeler_torch):
     def __init__(self, params, rand):
         super().__init__(params, rand)
-        self.model_class = cnn
+        self.model_class = params['model_class']
         self.dataset_class = cnnDataset
 
         self.loss_fn = nn.MSELoss()
@@ -92,6 +92,7 @@ if __name__=='__main__':
         'verbose': True,
         'split_by_subject': False,
         'modeler_params': {
+            'model_class': cnn,
             'num_epoch': 18,
             'batch_size': 10,
             'lr': 1e-3,

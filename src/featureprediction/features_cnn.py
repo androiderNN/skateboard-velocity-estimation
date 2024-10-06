@@ -330,6 +330,24 @@ class cnn_or(nn.Module):
 
 class cnn_2d_1(nn.Module):
     def __init__(self, params):
+        '''
+        {
+            'in_channels': 1,
+            'conv1_out': 32,
+            'conv1_ksize': 16,
+            'conv1_stride': 8,
+            'conv2_out': 128,
+            'conv2_ksize': 10,
+            'conv2_stride': 7,
+            'conv3_out': 512,
+            'conv3_ksize': 3,
+            'conv3_stride': 1,
+            'pool1_ksize': 2,
+            'pool2_ksize': 2,
+            'pool3_ksize': 2,
+            'p_dropout': 0.6,
+            'out_features': 1
+        }'''
         super().__init__()
         self.conv1 = nn.Conv2d(params['in_channels'], params['conv1_out'], params['conv1_ksize'], params['conv1_stride'])
         self.conv2 = nn.Conv1d(params['conv1_out'], params['conv2_out'], params['conv2_ksize'], params['conv2_stride'])

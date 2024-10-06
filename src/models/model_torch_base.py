@@ -56,6 +56,9 @@ class modeler_torch(model_base.modeler_base):
         self.model = None
         self.optimizer = None
         self.loss_fn = None
+
+        self.log = None
+        self.best_model = None
     
     def train_loop(self, dataloader):
         self.model.train()
@@ -92,18 +95,31 @@ class modeler_torch(model_base.modeler_base):
         estop_dataloader = DataLoader(estop_dataset, batch_size=self.params['batch_size'], shuffle=True)
 
         # 記録用ndarray
-        self.log = np.zeros((self.params['num_epoch'], 2))
-        ep = max(math.ceil(self.params['num_epoch']/10), 1)
+        self.log = list()
 
         for epoch in range(self.params['num_epoch']):
             self.train_loop(train_dataloader)
 
-            self.log[epoch, 0] = self.test_loop(train_dataloader)
-            self.log[epoch, 1] = self.test_loop(estop_dataloader)
+            self.log.append([0,0])
+            self.log[epoch][0] = self.test_loop(train_dataloader)
+            self.log[epoch][1] = self.test_loop(estop_dataloader)
 
-            if epoch%ep==0:
-                print(f'estop rmse: {self.log[epoch, 1]} [{epoch}/{self.params["num_epoch"]}]')
+            if epoch%10==0:
+                print(f'estop rmse: {self.log[-1][1]} [{epoch}/{self.params["num_epoch"]}]')
+
+            # estopのスコアが向上していればbest_modelを現在のモデルに更新
+            if self.log[-1][1] == min([l[1] for l in self.log]):
+                self.best_model = self.model
+            
+            # epochがestop_epoch+1回以上回り、かつロスがestop_epoch回前より落ちていなければ打ち切り
+            if (len(self.log) > self.params['estop_epoch']) and (self.log[-1][1] > self.log[-self.params['estop_epoch']-1][1]):
+                print(f'epoch {epoch} early stop')
+                print(f'estop rmse: {self.log[-1][1]}')
+                break
         
+        self.model = self.best_model
+        self.log = np.array(self.log)
+
         # 学習曲線描画
         if self.params['verbose']:
             plt.figure(figsize=(5,3))

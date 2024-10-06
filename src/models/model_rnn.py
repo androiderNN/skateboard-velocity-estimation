@@ -138,5 +138,7 @@ if __name__=='__main__':
         }
     }
 
+    print(params['modeler_params']['model_params'])
+
     predictor = model_base.vel_prediction(modeler_rnn, params)
     predictor.main()
