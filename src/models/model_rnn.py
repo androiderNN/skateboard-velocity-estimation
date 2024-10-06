@@ -45,11 +45,48 @@ class lstm(nn.Module):
         self.rnn = nn.LSTM(params['input_size'], params['hidden_size'], num_layers=params['num_layers'], dropout=params['dropout'])
         self.dropout = nn.Dropout(p=params['p_dropout'])
         self.fc = nn.Linear(params['hidden_size'], 1)
+        # self.bn = nn.BatchNorm2d(30)
 
     def forward(self, x):
         x, h = self.rnn(x)
+
+        # shape = x.shape
+        # x = x.reshape((shape[0], shape[1], shape[2], 1))   # batch norm 2dに入力するためreshape
+        # x = self.bn(x)
+        # x = x.reshape(shape)
+
         x = self.dropout(x)
         x = self.fc(x)
+        return x
+
+class lstm2(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+        self.rnn = nn.LSTM(params['input_size'], params['hidden_size'], num_layers=params['num_layers'], dropout=params['dropout'])
+        self.linear1 = nn.Linear(params['hidden_size'], params['hidden_size'])
+        self.linear2 = nn.Linear(params['hidden_size'], 1)
+
+        self.dropout = nn.Dropout(p=params['p_dropout'])
+        # self.bn1 = nn.BatchNorm2d(30)
+        # self.bn2 = nn.BatchNorm2d(30)
+
+    def forward(self, x):
+        x, h = self.rnn(x)
+
+        # shape = x.shape
+        # x = x.reshape((shape[0], shape[1], shape[2], 1))   # batch norm 2dに入力するためreshape
+        # x = self.bn1(x)
+        # x = x.reshape(shape)
+
+        x = self.dropout(x)
+        x = self.linear1(x)
+
+        # x = x.reshape((shape[0], shape[1], shape[2], 1))   # batch norm 2dに入力するためreshape
+        # x = self.bn2(x)
+        # x = x.reshape(shape)
+
+        x = self.dropout(x)
+        x = self.linear2(x)
         return x
 
 class modeler_rnn(model_torch_base.modeler_torch):
@@ -57,7 +94,7 @@ class modeler_rnn(model_torch_base.modeler_torch):
         super().__init__(params, rand)
         # self.model_class = rnn
         # self.model_class gru
-        self.model_class = lstm
+        self.model_class = params['model_class']
         self.dataset_class = model_torch_base.customDataset
 
         # self.loss_fn = nn.MSELoss()
@@ -85,17 +122,18 @@ class modeler_rnn(model_torch_base.modeler_torch):
 
 if __name__=='__main__':
     params = {
-        'modeltype': 'rnn',
+        'modeltype': 'rnn_lstm',
         'rand': 0,
         'use_cv': False,
         'normalize': True,
         'verbose': True,
         'split_by_subject': False,
         'modeler_params': {
+            'model_class': lstm,
             'num_epoch': 50,
             'batch_size': 10,
             'lr': 1e-3,
-            'verbose': False,
+            'verbose': True,
             'model_params': {'input_size': None, 'hidden_size': 50, 'p_dropout': 0.7, 'num_layers': 1, 'dropout':0}
         }
     }
