@@ -130,11 +130,12 @@ if __name__=='__main__':
         'split_by_subject': False,
         'modeler_params': {
             'model_class': lstm,
-            'num_epoch': 50,
+            'num_epoch': 200,
+            'estop_epoch': 20,
             'batch_size': 10,
             'lr': 1e-3,
-            'verbose': True,
-            'model_params': {'input_size': None, 'hidden_size': 50, 'p_dropout': 0.7, 'num_layers': 1, 'dropout':0}
+            'verbose': False,
+            'model_params': {'input_size': None, 'hidden_size': 50, 'p_dropout': 0.7, 'num_layers': 2, 'dropout':0.7}
         }
     }
 
