@@ -114,7 +114,6 @@ class modeler_torch(model_base.modeler_base):
             # epochがestop_epoch+1回以上回り、かつロスがestop_epoch回前より落ちていなければ打ち切り
             if (len(self.log) > self.params['estop_epoch']) and (self.log[-1][1] > self.log[-self.params['estop_epoch']-1][1]):
                 print(f'epoch {epoch} early stop')
-                print(f'estop rmse: {self.log[-1][1]}')
                 break
         
         self.model = self.best_model

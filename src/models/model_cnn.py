@@ -93,7 +93,8 @@ if __name__=='__main__':
         'split_by_subject': False,
         'modeler_params': {
             'model_class': cnn,
-            'num_epoch': 18,
+            'num_epoch': 200,
+            'estop_epoch': 20,
             'batch_size': 10,
             'lr': 1e-3,
             'verbose': False,
