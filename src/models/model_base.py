@@ -102,6 +102,27 @@ def rmse_3d(train:pd.DataFrame):
     rmse = errors.mean()
     return rmse
 
+def smoothing(df, ksize=5):
+    df = df.reindex(columns=['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z', 'vel_x_pred', 'vel_y_pred', 'vel_z_pred'])
+    array = np.array(df)
+    for sid in range(1,5):
+        for trial in np.unique(array[array[:,0]==sid, 1]):
+            for target in range(-3,0):
+                t = array[(array[:,0]==sid)&(array[:,1]==trial), target]
+
+                if ksize == 3:
+                    t = [t[0]] + [t[i:i+3].mean() for i in range(28)] + [t[29]]
+                elif ksize == 5:
+                    t = list(t[:2]) + [t[i:i+5].mean() for i in range(26)] + list(t[28:])
+                else:
+                    raise ValueError
+                
+                array[(array[:,0]==sid)&(array[:,1]==trial), target] = t
+
+    df = pd.DataFrame(array, columns=df.columns)
+    df = df.astype({'sid': 'int16', 'trial': 'int16', 'timepoint': 'int16'})
+    return df
+
 def makeexportdir(type:str):
     now = datetime.datetime.now()
     dirname = type + '_' + now.strftime('%m%d_%H:%M:%S')
@@ -307,6 +328,11 @@ class vel_prediction():
 
                 self.trainer_array.append(trainer)
 
+        # 予測値の平滑化
+        if self.params['smoothing']:
+            self.train_pred = smoothing(self.train_pred, ksize=5)
+            self.test_pred = smoothing(self.test_pred, ksize=5)
+
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
         index = get_tr_va_index(train, rand=self.params['rand'])
         tr_rmse = rmse_3d(self.train_pred[index[0]])
@@ -321,6 +347,8 @@ class vel_prediction():
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
             make_submission(self.test_pred, self.expath)
+            pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
+            pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
 
 default_params = {
     'modeltype': None,               # 'lgb'など
@@ -328,6 +356,7 @@ default_params = {
     'use_cv': False,            # cross validationの使用可否
     'verbose': True,            # 出力の可否
     'normalize': False,         # データの標準化可否
+    'smoothing': True,          # 予測値の平滑化可否
     'split_by_subject': False,
     'modeler_params': None      # modelerに渡すパラメータ
 }

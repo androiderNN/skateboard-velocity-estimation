@@ -32,11 +32,12 @@ class modeler_lgb(model_base.modeler_base):
 
 if __name__=='__main__':
     rand = 0
-    params = model_base.default_params
-    params.update({
+    params = {
         'modeltype': 'lgb',
         'rand': rand,
         'use_cv': False,
+        'normalize': False,
+        'smoothing': True,
         'verbose': True,
         'modeler_params':{
             'lgb_params': {
@@ -50,7 +51,7 @@ if __name__=='__main__':
             },
             'verbose': True
         }
-    })
+    }
 
     ins = model_base.vel_prediction(modeler_lgb, params=params)
     ins.main()
