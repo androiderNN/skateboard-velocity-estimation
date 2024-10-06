@@ -100,7 +100,7 @@ def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
 if __name__ == '__main__':
     redump_fft = False
     redump_iemg = False
-    compress_fft = True
+    compress_fft = False
 
     print(f'redump_fft = {redump_fft}')
     print(f'redump_iemg = {redump_iemg}')
