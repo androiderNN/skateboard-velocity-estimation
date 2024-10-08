@@ -1,10 +1,11 @@
-import os, sys, math
+import os, sys, pickle
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+from sklearn.model_selection import train_test_split, KFold
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 import model_base
@@ -126,3 +127,158 @@ class modeler_torch(model_base.modeler_base):
             plt.ylabel('rmse')
             plt.plot(self.log)
             plt.show()
+
+class holdout_training_ndarray():
+    def __init__(self, modeler, params, score_fn):
+        '''
+        hold-outで学習・予測・スコア算出を行うクラス
+        modeler : modeler_baseを継承したクラス
+        score_fn : y, y_predを入力するとスカラーのスコアを返す関数'''
+        self.modeler = modeler(params=params['modeler_params'], rand=params['rand'])
+        self.params = params
+        self.score_fn = score_fn
+
+    def main(self, x, y, test):
+        '''
+        関数内でインデックス分割、学習、スコア出力、testデータの予測出力まで行う'''
+        # データ分割
+        tr_x, es_x, tr_y, es_y = train_test_split(x, y, test_size=0.2, random_state=self.params['rand'])
+
+        # 学習
+        self.modeler.train(tr_x, tr_y, es_x, es_y)
+
+        # スコア出力
+        tr_pred = self.modeler.predict(tr_x)
+        tr_score = self.score_fn(tr_y, tr_pred)
+        print('train score :', tr_score)
+        es_pred = self.modeler.predict(es_x)
+        es_score = self.score_fn(es_y, es_pred)
+        print('estop score :', es_score)
+
+        # 予測
+        train_pred = self.modeler.predict(x)
+        test_pred = self.modeler.predict(test)
+        return train_pred, test_pred
+
+class cv_training_ndarray():
+    def __init__(self, modeler, params, score_fn):
+        self.mdr = modeler
+        self.modelers = list()
+        self.params = params
+        self.score_fn = score_fn
+
+    def predict(self, x):
+        '''
+        xを投げると各foldのモデルで予測し平均値を予測値として返す'''
+        pred = list()
+
+        for modeler in self.modelers:
+            pred.append(modeler.predict(x))
+        
+        pred = np.array(pred)
+        pred = pred.mean(axis=0)
+        return pred
+
+    def main(self, x, y, test):
+        '''
+        trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
+        # valid分割
+        tr_x, va_x, tr_y, va_y = train_test_split(x, y, test_size=0.2, random_state=self.params['rand'])
+
+        # fold分割
+        kf = KFold(n_splits=4, shuffle=True, random_state=self.params['rand'])
+
+        for i, (tr_index, es_index) in enumerate(kf.split(tr_x, tr_y)):
+            print('\nFold', i+1)
+            fold_x, fold_y = tr_x[tr_index], tr_y[tr_index]    # fold内での学習用データ
+            es_x, es_y = tr_x[es_index], tr_x[es_index]    # fold内でのearly stopping用データ
+
+            # 学習
+            modeler = self.mdr(params=self.params['modeler_params'], rand=self.params['rand'])
+            modeler.train(fold_x, fold_y, es_x, es_y)
+
+            # スコア出力
+            fold_pred = modeler.predict(fold_x)
+            fold_score = self.score_fn(fold_y, fold_pred)
+            print('train score :', fold_score)
+
+            es_pred = modeler.predict(es_x)
+            es_score = self.score_fn(es_y, es_pred)
+            print('estop score :', es_score)
+
+            self.modelers.append(modeler)
+
+        # スコア出力
+        print('\nmean prediction')
+        train_pred = self.predict(tr_x)
+        train_score = self.score_fn(tr_y, train_pred)
+        print('train score :', train_score)
+
+        valid_pred = self.predict(va_x)
+        valid_score = self.score_fn(va_y, valid_pred)
+        print('valid score :', valid_score, '\n')
+
+        # testデータの予測
+        train_pred = self.predict(x)
+        test_pred = self.predict(test)
+        return train_pred, test_pred
+
+class vel_prediction_ndarray():
+    def __init__(self, modeler, params):
+        self.params = params
+
+        self.modeler = modeler
+        self.expath = None
+        self.exornot = False
+
+        self.trainer_array = list()
+        self.train_pred = pickle.load(open(config.train_path, 'rb')).loc[:, ['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z']]
+        self.test_pred = pickle.load(open(config.test_path, 'rb')).loc[:, ['sid', 'trial', 'timepoint']]
+
+    def main(self, x, y, test):
+        '''
+        y: (trial, 30, 3)'''
+        # trainerの定義
+        if self.params['use_cv']: # cross validation
+            trainer_class = cv_training_ndarray
+        else:   # hold out
+            trainer_class = holdout_training_ndarray
+
+        # x, y, zごとのモデル作成と予測
+        for i, target in enumerate(config.target_name):
+            print('\ntarget :', target)
+            target_y = y[:,:,i]
+
+            if not self.params['split_by_subject']:   # 被験者で分割しない場合
+                # trainerの定義 cv_trainerまたはholdout_trainer
+                trainer = trainer_class(self.modeler, self.params, score_fn=model_base.rmse)
+
+                # 学習・予測
+                tr_pred, te_pred = trainer.main(x, target_y, test)
+                self.train_pred[target+'_pred'] = tr_pred
+                self.test_pred[target+'_pred'] = te_pred
+
+                self.trainer_array.append(trainer)
+
+        # 予測値の平滑化
+        if self.params['smoothing']:
+            self.train_pred = model_base.smoothing(self.train_pred, ksize=5)
+            self.test_pred = model_base.smoothing(self.test_pred, ksize=5)
+
+        # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
+        index = train_test_split([i for i in range(x.shape[0])], test_size=0.2, rand=self.params['rand'])
+        tr_rmse = model_base.rmse_3d(self.train_pred[index[0]])
+        print('\ntrain rmse :', tr_rmse)
+        es_rmse = model_base.rmse_3d(self.train_pred[index[1]])
+        print('validation rmse :', es_rmse)
+
+        #保存
+        self.expath = model_base.makeexportdir(self.params['modeltype'])
+        if self.params['verbose']:
+            self.exornot = input('\n出力しますか(y/n)')=='y'
+        if self.exornot:
+            os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
+            model_base.make_submission(self.test_pred, self.expath)
+            pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
+            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'testpred.pkl'), 'wb'))
+            pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
