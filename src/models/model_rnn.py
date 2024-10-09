@@ -66,6 +66,7 @@ class lstm2(nn.Module):
         self.linear1 = nn.Linear(params['hidden_size'], params['hidden_size'])
         self.linear2 = nn.Linear(params['hidden_size'], 1)
 
+        self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=params['p_dropout'])
         # self.bn1 = nn.BatchNorm2d(30)
         # self.bn2 = nn.BatchNorm2d(30)
@@ -80,6 +81,7 @@ class lstm2(nn.Module):
 
         x = self.dropout(x)
         x = self.linear1(x)
+        x = self.relu(x)
 
         # x = x.reshape((shape[0], shape[1], shape[2], 1))   # batch norm 2dに入力するためreshape
         # x = self.bn2(x)

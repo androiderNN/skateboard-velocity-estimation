@@ -25,14 +25,6 @@ class dataset_cnnf(Dataset):
     def __getitem__(self, idx):
         return self.myodata[idx], self.target[idx]
 
-def myo_processor(raw_data, lowcut):
-    myo = [raw_data[str(s).zfill(4)][0,0][0] for s in range(1,5)]   # 筋電位データのみ抽出
-    myo = [iemg.iemg_core(m, lowcut) for m in myo]  # フィルタリング
-    num_trials = [m.shape[0] for m in myo]
-
-    myo = np.array([t for m in myo for t in m]) # (12**, 16, 1000)
-    return myo, num_trials
-
 def initvel_processor(raw_data):
     initvel = np.array([t[0,0] for s in range(1,5) for t in raw_data[str(s).zfill(4)][0,0][1]]) # 各trialのxの初速
     return initvel
@@ -479,6 +471,6 @@ class modeler_cnnf(model_torch_base.modeler_torch):
 
         x = torch.tensor(x, dtype=torch.float32)
         pred = self.model(x).detach().numpy()
-        pred = max(x, 0)
-        pred = min(x, 29)
+        pred = max(pred, 0)
+        pred = min(pred, 29)
         return pred

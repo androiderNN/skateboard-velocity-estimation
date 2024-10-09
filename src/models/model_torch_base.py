@@ -11,8 +11,23 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 import model_base
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'features'))
+import iemg
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+def myo_processor(raw_data, lowcut=999):
+    myo = [raw_data[str(s).zfill(4)][0,0][0] for s in range(1,5)]   # 筋電位データのみ抽出
+    if lowcut != 999:
+        myo = [iemg.iemg_core(m, lowcut) for m in myo]  # フィルタリング
+
+    myo = np.array([t for m in myo for t in m]) # (12**, 16, 1000)
+    return myo
+
+def vel_extractor(train_raw):
+    vel = [t for s in range(1,5) for t in train_raw[str(s).zfill(4)][0,0][1]]
+    vel = np.array(vel)
+    return vel
 
 class customDataset(Dataset):
     def __init__(self, x, y):
@@ -237,7 +252,7 @@ class vel_prediction_ndarray():
 
     def main(self, x, y, test):
         '''
-        y: (trial, 30, 3)'''
+        y: (trial, 3, 30)'''
         # trainerの定義
         if self.params['use_cv']: # cross validation
             trainer_class = cv_training_ndarray
@@ -247,7 +262,7 @@ class vel_prediction_ndarray():
         # x, y, zごとのモデル作成と予測
         for i, target in enumerate(config.target_name):
             print('\ntarget :', target)
-            target_y = y[:,:,i]
+            target_y = y[:,i,:]
 
             if not self.params['split_by_subject']:   # 被験者で分割しない場合
                 # trainerの定義 cv_trainerまたはholdout_trainer
@@ -266,10 +281,11 @@ class vel_prediction_ndarray():
             self.test_pred = model_base.smoothing(self.test_pred, ksize=5)
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
-        index = train_test_split([i for i in range(x.shape[0])], test_size=0.2, rand=self.params['rand'])
-        tr_rmse = model_base.rmse_3d(self.train_pred[index[0]])
+        index = train_test_split([i for i in range(x.shape[0])], test_size=0.2, random_state=self.params['rand'])
+        index = [[i*30+j for i in idx for j in range(30)] for idx in index]
+        tr_rmse = model_base.rmse_3d(self.train_pred.iloc[index[0],:])
         print('\ntrain rmse :', tr_rmse)
-        es_rmse = model_base.rmse_3d(self.train_pred[index[1]])
+        es_rmse = model_base.rmse_3d(self.train_pred.iloc[index[1],:])
         print('validation rmse :', es_rmse)
 
         #保存
