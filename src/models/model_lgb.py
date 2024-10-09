@@ -39,6 +39,7 @@ if __name__=='__main__':
         'normalize': False,
         'smoothing': True,
         'verbose': True,
+        'split_by_subject': False,
         'modeler_params':{
             'lgb_params': {
                 'objective': 'regression',

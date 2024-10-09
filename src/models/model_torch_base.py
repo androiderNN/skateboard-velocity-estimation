@@ -164,10 +164,10 @@ class holdout_training_ndarray():
 
         # スコア出力
         tr_pred = self.modeler.predict(tr_x)
-        tr_score = self.score_fn(tr_y, tr_pred)
+        tr_score = self.score_fn(tr_y.flatten(), tr_pred)
         print('train score :', tr_score)
         es_pred = self.modeler.predict(es_x)
-        es_score = self.score_fn(es_y, es_pred)
+        es_score = self.score_fn(es_y.flatten(), es_pred)
         print('estop score :', es_score)
 
         # 予測
@@ -214,11 +214,11 @@ class cv_training_ndarray():
 
             # スコア出力
             fold_pred = modeler.predict(fold_x)
-            fold_score = self.score_fn(fold_y, fold_pred)
+            fold_score = self.score_fn(fold_y.flatten(), fold_pred.flatten())
             print('train score :', fold_score)
 
             es_pred = modeler.predict(es_x)
-            es_score = self.score_fn(es_y, es_pred)
+            es_score = self.score_fn(es_y.flatten(), es_pred.flatten())
             print('estop score :', es_score)
 
             self.modelers.append(modeler)

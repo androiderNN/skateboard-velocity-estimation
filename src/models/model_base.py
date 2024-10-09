@@ -84,8 +84,6 @@ def print_score(tr_y, tr_pred, es_y, es_pred, va_y, va_pred):
         print('valid :', mean_squared_error(va_y, va_pred)**0.5)
 
 def rmse(y, y_pred):
-    y = y.flatten()
-    y_pred = y_pred.flatten()
     return mean_squared_error(y, y_pred)**0.5
 
 def rmse_3d(train:pd.DataFrame):
