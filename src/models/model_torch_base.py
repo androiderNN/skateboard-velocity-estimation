@@ -17,11 +17,14 @@ import iemg
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def myo_processor(raw_data, lowcut=999):
-    myo = [raw_data[str(s).zfill(4)][0,0][0] for s in range(1,5)]   # 筋電位データのみ抽出
-    if lowcut != 999:
-        myo = [iemg.iemg_core(m, lowcut) for m in myo]  # フィルタリング
+    myo = np.array([t for s in range(1,5) for t in raw_data[str(s).zfill(4)][0,0][0]])   # 筋電位データのみ抽出 (12**, 16, 1000)
+    myo = abs(myo)
 
-    myo = np.array([t for m in myo for t in m]) # (12**, 16, 1000)
+    if lowcut < 999:    # lowcutが999未満のときフィルタリング
+        myo = np.array([iemg.apply_filter(t, lowcut) for t in myo])
+    else:   # 999のときはここで正規化
+        myo = myo / myo.max(axis=2)[:,:,np.newaxis]
+    
     return myo
 
 def vel_extractor(train_raw):
@@ -273,7 +276,8 @@ class vel_prediction_ndarray():
                 self.train_pred[target+'_pred'] = tr_pred
                 self.test_pred[target+'_pred'] = te_pred
 
-                self.trainer_array.append(trainer)
+                # self.trainer_array.append(trainer)
+                del trainer # jupyterが落ちるのでtrainerを消してみる
 
         # 予測値の平滑化
         if self.params['smoothing']:
