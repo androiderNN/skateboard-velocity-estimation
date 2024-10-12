@@ -351,6 +351,10 @@ class vel_prediction():
         elif self.params['smoothing'] == 'lp':
             self.train_pred = smoothing_lowpass(self.train_pred, lowcut=1)
             self.test_pred = smoothing_lowpass(self.test_pred, lowcut=1)
+        elif self.params['smoothing'] == False:
+            pass
+        else:
+            raise ValueError
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
         index = get_tr_va_index(train, rand=self.params['rand'])
