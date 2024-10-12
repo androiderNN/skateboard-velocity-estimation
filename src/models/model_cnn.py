@@ -1,6 +1,7 @@
 import os, sys, math
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -184,6 +185,13 @@ class modeler_cnn(model_torch_base.modeler_torch):
         return pred
 
 if __name__=='__main__':
+    train = sio.loadmat(config.train_raw_path)
+    test = sio.loadmat(config.test_raw_path)
+
+    train_myo = model_torch_base.myo_processor(train, 10)
+    test_myo = model_torch_base.myo_processor(test, 10)
+    y = model_torch_base.vel_extractor(train)
+
     model_params = {
         'conv1_in': 16,
         'conv1_out': 64,
@@ -226,5 +234,5 @@ if __name__=='__main__':
         }
     }
 
-    predictor = model_base.vel_prediction(modeler_cnn, params)
-    predictor.main()
+    vp = model_torch_base.vel_prediction_ndarray(modeler_cnn, params)
+    vp.main(train_myo, y, test_myo)
