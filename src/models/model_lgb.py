@@ -37,7 +37,7 @@ if __name__=='__main__':
         'rand': rand,
         'use_cv': False,
         'normalize': False,
-        'smoothing': True,
+        'smoothing': 'ma',
         'verbose': True,
         'split_by_subject': False,
         'modeler_params':{

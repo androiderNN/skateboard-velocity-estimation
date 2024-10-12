@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'features'))
-import process_core
+import process_core, iemg
 
 train = pickle.load(open(config.train_path, 'rb'))
 test = pickle.load(open(config.test_path, 'rb'))
@@ -102,7 +102,7 @@ def rmse_3d(train:pd.DataFrame):
     rmse = errors.mean()
     return rmse
 
-def smoothing(df, ksize=5):
+def smoothing_movingaverage(df, ksize=5):
     df = df.reindex(columns=['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z', 'vel_x_pred', 'vel_y_pred', 'vel_z_pred'])
     array = np.array(df)
     for sid in range(1,5):
@@ -111,13 +111,29 @@ def smoothing(df, ksize=5):
                 t = array[(array[:,0]==sid)&(array[:,1]==trial), target]
 
                 if ksize == 3:
-                    t = [t[0]] + [t[i:i+3].mean() for i in range(28)] + [t[29]]
+                    # t = [t[0]] + [t[i:i+3].mean() for i in range(28)] + [t[29]]
+                    t = [t[:2].mean()] + [t[i:i+3].mean() for i in range(28)] + [t[-2:].mean()]
                 elif ksize == 5:
-                    t = list(t[:2]) + [t[i:i+5].mean() for i in range(26)] + list(t[28:])
+                    # t = list(t[:2]) + [t[i:i+5].mean() for i in range(26)] + list(t[28:])
+                    t = [t[:2].mean(), t[:3].mean()] + [t[i:i+5].mean() for i in range(26)] + [t[-3:].mean(), t[-2:].mean()]
                 else:
                     raise ValueError
                 
                 array[(array[:,0]==sid)&(array[:,1]==trial), target] = t
+
+    df = pd.DataFrame(array, columns=df.columns)
+    df = df.astype({'sid': 'int16', 'trial': 'int16', 'timepoint': 'int16'})
+    return df
+
+def smoothing_lowpass(df, lowcut=1):
+    df = df.reindex(columns=['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z', 'vel_x_pred', 'vel_y_pred', 'vel_z_pred'])
+    array = np.array(df)
+    for sid in range(1,5):
+        for trial in np.unique(array[array[:,0]==sid, 1]):
+            for target in range(-3,0):
+                t = array[(array[:,0]==sid)&(array[:,1]==trial), target]
+
+                array[(array[:,0]==sid)&(array[:,1]==trial), target] = iemg.apply_filter(t, lowcut, 30, 2)
 
     df = pd.DataFrame(array, columns=df.columns)
     df = df.astype({'sid': 'int16', 'trial': 'int16', 'timepoint': 'int16'})
@@ -329,9 +345,12 @@ class vel_prediction():
                 self.trainer_array.append(trainer)
 
         # 予測値の平滑化
-        if self.params['smoothing']:
-            self.train_pred = smoothing(self.train_pred, ksize=5)
-            self.test_pred = smoothing(self.test_pred, ksize=5)
+        if self.params['smoothing'] == 'ma':
+            self.train_pred = smoothing_movingaverage(self.train_pred, ksize=5)
+            self.test_pred = smoothing_movingaverage(self.test_pred, ksize=5)
+        elif self.params['smoothing'] == 'lp':
+            self.train_pred = smoothing_lowpass(self.train_pred, lowcut=1)
+            self.test_pred = smoothing_lowpass(self.test_pred, lowcut=1)
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
         index = get_tr_va_index(train, rand=self.params['rand'])

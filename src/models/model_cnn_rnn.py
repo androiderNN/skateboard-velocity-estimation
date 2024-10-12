@@ -280,7 +280,7 @@ if __name__=='__main__':
         'rand': 1,
         'use_cv': False,
         'normalize': True,
-        'smoothing': True,
+        'smoothing': 'lp',
         'verbose': True,
         'split_by_subject': False,
         'modeler_params': {

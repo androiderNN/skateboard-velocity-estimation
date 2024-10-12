@@ -21,12 +21,11 @@ def get_filter(lowcut, fs, order):
     b, a = signal.butter(order, low, btype='low')
     return b, a
 
-def apply_filter(x, lowcut=lowcut):
+def apply_filter(x, lowcut=lowcut, fs=fs, order=order):
     '''
     フィルタを適用する関数'''
     b, a = get_filter(lowcut, fs, order)
     y = signal.filtfilt(b, a, x)
-    y = y/y.max()   # 最大値で除して正規化
     return y
 
 def iemg_core(data_myo, lowcut=lowcut):
@@ -35,6 +34,7 @@ def iemg_core(data_myo, lowcut=lowcut):
     data_myo = abs(data_myo)
     # data_myo = np.apply_along_axis(apply_filter, 2, data_myo)
     data_myo = np.array([[apply_filter(data_myo[i,j,:], lowcut) for j in range(data_myo.shape[1])] for i in range(data_myo.shape[0])])
+    data_myo = data_myo / data_myo.max(axis=2)[:,:,np.newaxis]  # 最大値で除して正規化
     return data_myo
 
 def pickfromtrial(ie, n):

@@ -128,7 +128,7 @@ if __name__=='__main__':
         'rand': 0,
         'use_cv': False,
         'normalize': True,
-        'smoothing': True,
+        'smoothing': 'ma',
         'verbose': True,
         'split_by_subject': False,
         'modeler_params': {
