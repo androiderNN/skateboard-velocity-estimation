@@ -212,7 +212,7 @@ class cv_training_ndarray():
         for i, (tr_index, es_index) in enumerate(kf.split(tr_x, tr_y)):
             print('\nFold', i+1)
             fold_x, fold_y = tr_x[tr_index], tr_y[tr_index]    # fold内での学習用データ
-            es_x, es_y = tr_x[es_index], tr_x[es_index]    # fold内でのearly stopping用データ
+            es_x, es_y = tr_x[es_index], tr_y[es_index]    # fold内でのearly stopping用データ
 
             # 学習
             modeler = self.mdr(params=self.params['modeler_params'], rand=self.params['rand'])
