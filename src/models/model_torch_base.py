@@ -1,4 +1,4 @@
-import os, sys, pickle
+import os, sys, pickle, copy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -108,6 +108,7 @@ class modeler_torch(model_base.modeler_base):
         trainとestopのdatasetを入力すると学習とログ出力を行う'''
         self.model = self.model_class(self.params['model_params'])
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.params['lr'])
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, 0.98)
 
         # データローダー
         train_dataloader = DataLoader(train_dataset, batch_size=self.params['batch_size'], shuffle=True)
@@ -123,19 +124,21 @@ class modeler_torch(model_base.modeler_base):
             self.log[epoch][0] = self.test_loop(train_dataloader)
             self.log[epoch][1] = self.test_loop(estop_dataloader)
 
+            # scheduler.step()
+
             if epoch%10==0:
                 print(f'estop rmse: {self.log[-1][1]} [{epoch}/{self.params["num_epoch"]}]')
 
             # estopのスコアが向上していればbest_modelを現在のモデルに更新
             if self.log[-1][1] == min([l[1] for l in self.log]):
-                self.best_model = self.model
+                self.best_model = copy.deepcopy(self.model.state_dict())
             
             # epochがestop_epoch+1回以上回り、かつロスがestop_epoch回前より落ちていなければ打ち切り
             if (len(self.log) > self.params['estop_epoch']) and (self.log[-1][1] > self.log[-self.params['estop_epoch']-1][1]):
                 print(f'epoch {epoch} early stop')
                 break
         
-        self.model = self.best_model
+        self.model.load_state_dict(self.best_model)
         self.log = np.array(self.log)
 
         # 学習曲線描画
