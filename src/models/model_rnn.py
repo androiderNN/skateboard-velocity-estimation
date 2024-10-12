@@ -97,7 +97,7 @@ class modeler_rnn(model_torch_base.modeler_torch):
         # self.model_class = rnn
         # self.model_class gru
         self.model_class = params['model_class']
-        self.dataset_class = model_torch_base.customDataset
+        self.dataset_class = model_torch_base.dataset_df
 
         # self.loss_fn = nn.MSELoss()
         self.loss_fn = nn.L1Loss()
@@ -106,8 +106,8 @@ class modeler_rnn(model_torch_base.modeler_torch):
     def train(self, tr_x, tr_y, es_x, es_y):
         self.params['model_params']['input_size'] = tr_x.shape[1]
 
-        tr_dataset = model_torch_base.customDataset(tr_x, tr_y)
-        es_dataset = model_torch_base.customDataset(es_x, es_y)
+        tr_dataset = self.dataset_class(tr_x, tr_y)
+        es_dataset = self.dataset_class(es_x, es_y)
 
         super().train(tr_dataset, es_dataset)
 
@@ -124,7 +124,7 @@ class modeler_rnn(model_torch_base.modeler_torch):
 
 if __name__=='__main__':
     params = {
-        'modeltype': 'rnn_lstm',
+        'modeltype': 'lstm',
         'rand': 0,
         'use_cv': False,
         'normalize': True,

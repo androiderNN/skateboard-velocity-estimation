@@ -32,7 +32,7 @@ def vel_extractor(train_raw):
     vel = np.array(vel)
     return vel
 
-class customDataset(Dataset):
+class dataset_df(Dataset):
     def __init__(self, x, y):
         '''
         汎用データセットクラス
@@ -53,6 +53,17 @@ class customDataset(Dataset):
         out_x = self.x[i]
         out_y = self.y[i]
         return out_x, out_y
+
+class dataset_ndarray(Dataset):
+    def __init__(self, x, y):
+        self.x = torch.tensor(x, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.float32)
+    
+    def __len__(self):
+        return self.x.shape[0]
+
+    def __getitem__(self, i):
+        return self.x[i], self.y[i]
 
 class RMSELoss(nn.Module):
     def __init__(self):

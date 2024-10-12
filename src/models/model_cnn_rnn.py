@@ -39,23 +39,6 @@ class cnn_rnn_Dataset(Dataset):
     def __getitem__(self, i):
         return self.x[i], self.y[i]
 
-class cnn_rnn_Dataset2(Dataset):
-    def __init__(self, x, y):
-        '''
-        x: (trials,30,seqs)
-        y: (trials,30)'''        
-        y = np.array(y)
-        # y = y.transpose(0,2,1)
-
-        self.x = torch.tensor(x, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.float32)
-    
-    def __len__(self):
-        return self.x.shape[0]
-
-    def __getitem__(self, i):
-        return self.x[i], self.y[i]
-
 class cnn_rnn(nn.Module):
     def __init__(self, params):
         super().__init__()
@@ -197,7 +180,7 @@ class cnn_rnn3(nn.Module):
         self.pool1 = nn.MaxPool1d(params['pool1_ksize'])
         self.pool2 = nn.MaxPool1d(params['pool2_ksize'])
 
-        self.rnn = nn.LSTM(params['conv3_out'], params['rnn_hidden'], num_layers=params['rnn_layers'], dropout=params['p_dropout'])
+        self.rnn = nn.LSTM(params['conv3_out'], params['rnn_hidden'], num_layers=params['rnn_layers'], dropout=params['rnn_dropout'])
 
         self.linear1 = nn.Linear(params['rnn_hidden'], params['rnn_hidden'])
         self.linear2 = nn.Linear(params['rnn_hidden'], params['out_features'])
@@ -240,7 +223,7 @@ class modeler_cnn_rnn(model_torch_base.modeler_torch):
     def __init__(self, params, rand):
         super().__init__(params, rand)
         self.model_class = params['model_class']
-        self.dataset_class = cnn_rnn_Dataset2
+        self.dataset_class = model_torch_base.dataset_ndarray
 
         # self.loss_fn = nn.MSELoss()
         self.loss_fn = nn.L1Loss()
@@ -284,7 +267,10 @@ if __name__=='__main__':
         'conv3_stride': 1,
         'conv3_padding': 1,
         'pool1_ksize': 2,
+        'pool2_ksize': 1,
         'rnn_hidden': 128,
+        'rnn_layers': 1,
+        'rnn_dropout': 0,
         'out_features': 1,
         'p_dropout': 0.5,
     }
