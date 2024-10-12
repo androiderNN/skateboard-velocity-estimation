@@ -2,6 +2,8 @@ import os
 
 fdir = '../data'
 exdir = '../export'
+saved_model_dir = '../saved_models'
+
 train_raw_path = os.path.join(fdir, 'raws', 'train.mat')
 test_raw_path = os.path.join(fdir, 'raws', 'test.mat')
 

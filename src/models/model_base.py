@@ -9,6 +9,9 @@ import config
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'features'))
 import process_core, iemg
 
+now = datetime.datetime.now()
+time = now.strftime('%m%d_%H:%M:%S')
+
 train = pickle.load(open(config.train_path, 'rb'))
 test = pickle.load(open(config.test_path, 'rb'))
 
@@ -140,8 +143,7 @@ def smoothing_lowpass(df, lowcut=1):
     return df
 
 def makeexportdir(type:str):
-    now = datetime.datetime.now()
-    dirname = type + '_' + now.strftime('%m%d_%H:%M:%S')
+    dirname = type + '_' + time
     dirpath = os.path.join(config.exdir, dirname)
     return dirpath
 
@@ -222,6 +224,9 @@ class holdout_training():
         train_pred = self.modeler.predict(train[col])
         test_pred = self.modeler.predict(test[col])
         return train_pred, test_pred
+    
+    def predict(self, x):
+        return self.modeler.predict(x)
 
 class cv_training():
     def __init__(self, modeler, params, score_fn):
@@ -295,6 +300,17 @@ class cv_training():
 
 class vel_prediction():
     def __init__(self, modeler, params):
+        '''
+        {
+            'modeltype': None,          # 'lgb'など
+            'rand': 0,                  # シード
+            'use_cv': False,            # cross validationの使用可否
+            'verbose': True,            # 出力の可否
+            'normalize': False,         # データの標準化可否
+            'smoothing': False,         # 予測値の平滑化可否
+            'split_by_subject': False,
+            'modeler_params': None      # modelerに渡すパラメータ
+        }'''
         self.params = params
 
         self.col = [c for c in train.columns if c not in config.drop_list]
@@ -366,21 +382,16 @@ class vel_prediction():
         #保存
         self.expath = makeexportdir(self.params['modeltype'])
         if self.params['verbose']:
-            self.exornot = input('\n出力しますか(y/n)')=='y'
-        if self.exornot:
+            exornot = input('\n予測値の出力(y/n)')=='y'
+            savetrainer = input('モデルの保存(y/n)')=='y'
+
+        if exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
             make_submission(self.test_pred, self.expath)
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
             pickle.dump(self.test_pred, open(os.path.join(self.expath, 'testpred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+        
+        if savetrainer:
+            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, type+'_'+time+'pkl')))
 
-default_params = {
-    'modeltype': None,               # 'lgb'など
-    'rand': 0,                  # シード
-    'use_cv': False,            # cross validationの使用可否
-    'verbose': True,            # 出力の可否
-    'normalize': False,         # データの標準化可否
-    'smoothing': True,          # 予測値の平滑化可否
-    'split_by_subject': False,
-    'modeler_params': None      # modelerに渡すパラメータ
-}
