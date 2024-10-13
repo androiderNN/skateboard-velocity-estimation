@@ -296,8 +296,8 @@ class vel_prediction_ndarray():
                 self.train_pred[target+'_pred'] = tr_pred
                 self.test_pred[target+'_pred'] = te_pred
 
-                # self.trainer_array.append(trainer)
-                del trainer # jupyterが落ちるのでtrainerを消してみる
+                self.trainer_array.append(trainer)
+                # del trainer # jupyterが落ちるのでtrainerを消してみる
 
         # 予測値の平滑化
         if self.params['smoothing'] == 'ma':
