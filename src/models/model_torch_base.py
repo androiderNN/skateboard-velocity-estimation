@@ -1,4 +1,4 @@
-import os, sys, pickle, copy
+import os, sys, pickle, copy, datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,6 +13,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import config
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'features'))
 import iemg
+
+now = datetime.datetime.now()
+time = now.strftime('%m%d_%H:%M:%S')
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -294,9 +297,16 @@ class vel_prediction_ndarray():
                 del trainer # jupyterが落ちるのでtrainerを消してみる
 
         # 予測値の平滑化
-        if self.params['smoothing']:
-            self.train_pred = model_base.smoothing(self.train_pred, ksize=5)
-            self.test_pred = model_base.smoothing(self.test_pred, ksize=5)
+        if self.params['smoothing'] == 'ma':
+            self.train_pred = model_base.smoothing_movingaverage(self.train_pred, ksize=5)
+            self.test_pred = model_base.smoothing_movingaverage(self.test_pred, ksize=5)
+        elif self.params['smoothing'] == 'lp':
+            self.train_pred = model_base.smoothing_lowpass(self.train_pred, lowcut=1)
+            self.test_pred = model_base.smoothing_lowpass(self.test_pred, lowcut=1)
+        elif self.params['smoothing'] == False:
+            pass
+        else:
+            raise ValueError
 
         # rmse出力 cvかhoかでvalidデータの使用目的（estop/valid)が異なるため注意
         index = train_test_split([i for i in range(x.shape[0])], test_size=0.2, random_state=self.params['rand'])
@@ -307,12 +317,19 @@ class vel_prediction_ndarray():
         print('validation rmse :', es_rmse)
 
         #保存
-        self.expath = model_base.makeexportdir(self.params['modeltype'])
+        self.expath = model_base.makeexportdir(self.params['modeltype'], time)
+
         if self.params['verbose']:
             self.exornot = input('\n出力しますか(y/n)')=='y'
+            savetrainer = input('モデルの保存(y/n)')=='y'
+
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
             model_base.make_submission(self.test_pred, self.expath)
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
-            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'testpred.pkl'), 'wb'))
+            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+
+        if savetrainer:
+            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
+            print('model saved')

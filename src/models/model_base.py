@@ -142,7 +142,7 @@ def smoothing_lowpass(df, lowcut=1):
     df = df.astype({'sid': 'int16', 'trial': 'int16', 'timepoint': 'int16'})
     return df
 
-def makeexportdir(type:str):
+def makeexportdir(type:str, time):
     dirname = type + '_' + time
     dirpath = os.path.join(config.exdir, dirname)
     return dirpath
@@ -380,7 +380,7 @@ class vel_prediction():
         print('validation rmse :', es_rmse)
 
         #保存
-        self.expath = makeexportdir(self.params['modeltype'])
+        self.expath = makeexportdir(self.params['modeltype'], time)
         if self.params['verbose']:
             exornot = input('\n予測値の出力(y/n)')=='y'
             savetrainer = input('モデルの保存(y/n)')=='y'
@@ -389,9 +389,9 @@ class vel_prediction():
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
             make_submission(self.test_pred, self.expath)
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
-            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'testpred.pkl'), 'wb'))
+            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
         
         if savetrainer:
-            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, type+'_'+time+'pkl')))
-
+            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
+            print('model saved')

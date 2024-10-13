@@ -229,7 +229,7 @@ if __name__=='__main__':
             'estop_epoch': 100,
             'batch_size': 10,
             'lr': 1e-3,
-            'verbose': True,
+            'verbose': False,
             'model_params': model_params
         }
     }
