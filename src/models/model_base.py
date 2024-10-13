@@ -387,7 +387,7 @@ class vel_prediction():
 
         if exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
-            make_submission(self.test_pred, self.expath)
+            make_submission(self.test_pred.copy(), self.expath)
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
             pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))

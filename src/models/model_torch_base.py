@@ -195,6 +195,9 @@ class holdout_training_ndarray():
         test_pred = self.modeler.predict(test)
         return train_pred, test_pred
 
+    def predict(self, x):
+        return self.modeler.predict(x)
+
 class cv_training_ndarray():
     def __init__(self, modeler, params, score_fn):
         self.mdr = modeler
@@ -325,7 +328,7 @@ class vel_prediction_ndarray():
 
         if self.exornot:
             os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
-            model_base.make_submission(self.test_pred, self.expath)
+            model_base.make_submission(self.test_pred.copy(), self.expath)
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
             pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
