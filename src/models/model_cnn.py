@@ -188,8 +188,8 @@ if __name__=='__main__':
     train = sio.loadmat(config.train_raw_path)
     test = sio.loadmat(config.test_raw_path)
 
-    train_myo = model_torch_base.myo_processor(train, 10)
-    test_myo = model_torch_base.myo_processor(test, 10)
+    train_myo = model_torch_base.myo_processor(train, 5)
+    test_myo = model_torch_base.myo_processor(test, 5)
     y = model_torch_base.vel_extractor(train)
 
     model_params = {
@@ -203,7 +203,7 @@ if __name__=='__main__':
         'conv3_out': 256,
         'conv3_ksize': 3,
         'conv3_stride': 1,
-        'conv4_out': 1024,
+        'conv4_out': 64,
         'conv4_ksize': 2,
         'conv4_stride': 1,
         'pool1_ksize': 2,
@@ -212,7 +212,7 @@ if __name__=='__main__':
         'pool2_padding': 0,
         'pool3_ksize': 2,
         'pool3_padding': 0,
-        'p_dropout': 0.5
+        'p_dropout': 0.3
     }
 
     params = {
