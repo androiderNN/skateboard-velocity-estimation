@@ -249,11 +249,11 @@ class cv_training_ndarray():
         # スコア出力
         print('\nmean prediction')
         train_pred = self.predict(tr_x)
-        train_score = self.score_fn(tr_y, train_pred)
+        train_score = self.score_fn(tr_y.flatten(), train_pred)
         print('train score :', train_score)
 
         valid_pred = self.predict(va_x)
-        valid_score = self.score_fn(va_y, valid_pred)
+        valid_score = self.score_fn(va_y.flatten(), valid_pred)
         print('valid score :', valid_score, '\n')
 
         # testデータの予測
