@@ -142,8 +142,9 @@ def smoothing_lowpass(df, lowcut=1):
     df = df.astype({'sid': 'int16', 'trial': 'int16', 'timepoint': 'int16'})
     return df
 
-def makeexportdir(type:str, time):
+def makeexportdir(type:str, time, use_cv):
     dirname = type + '_' + time
+    dirname = dirname+'_cv' if use_cv else dirname
     dirpath = os.path.join(config.exdir, dirname)
     return dirpath
 
@@ -399,7 +400,7 @@ class vel_prediction():
         print('validation rmse :', es_rmse)
 
         #保存
-        self.expath = makeexportdir(self.params['modeltype'], time)
+        self.expath = makeexportdir(self.params['modeltype'], time, self.params['use_cv'])
         if self.params['verbose']:
             exornot = input('\n予測値の出力(y/n)')=='y'
             savetrainer = input('モデルの保存(y/n)')=='y'

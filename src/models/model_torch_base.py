@@ -122,7 +122,7 @@ class modeler_torch(model_base.modeler_base):
         trainとestopのdatasetを入力すると学習とログ出力を行う'''
         self.model = self.model_class(self.params['model_params'])
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.params['lr'])
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, 0.98)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, 0.98)
 
         # データローダー
         train_dataloader = DataLoader(train_dataset, batch_size=self.params['batch_size'], shuffle=True)
@@ -138,7 +138,7 @@ class modeler_torch(model_base.modeler_base):
             self.log[epoch][0] = self.test_loop(train_dataloader)
             self.log[epoch][1] = self.test_loop(estop_dataloader)
 
-            # scheduler.step()
+            scheduler.step()
 
             if epoch%10==0:
                 print(f'estop rmse: {self.log[-1][1]} [{epoch}/{self.params["num_epoch"]}]')
@@ -345,7 +345,7 @@ class vel_prediction_ndarray():
         print('validation rmse :', es_rmse)
 
         #保存
-        self.expath = model_base.makeexportdir(self.params['modeltype'], time)
+        self.expath = model_base.makeexportdir(self.params['modeltype'], time, self.params['use_cv'])
 
         if self.params['verbose']:
             self.exornot = input('\n出力しますか(y/n)')=='y'
@@ -371,6 +371,11 @@ class vel_prediction_ndarray():
                     'vel_z_pred': cv_pred[2]['valid_pred'],
                 }
                 cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
+
+                if self.params['smoothing'] == 'ma':
+                    cv_pred_df = model_base.smoothing_movingaverage(cv_pred_df, ksize=5)
+                elif self.params['smoothing'] == 'lp':
+                    cv_pred_df = model_base.smoothing_lowpass(cv_pred_df, lowcut=1)
 
                 pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
         
