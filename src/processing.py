@@ -4,8 +4,7 @@ import pandas as pd
 from scipy import io as sio
 
 import config
-from features import iemg, fft, process_core
-from models import clustering
+from features import iemg, fft, process_core, extract_from_nn, clustering
 
 def convert_y(df, goofy_only:bool):
     '''
@@ -65,7 +64,7 @@ def process_timepoint(data_sub, fft_df):
     data_df = pd.merge(data_df, fft_df, on=['trial', 'timepoint'])
     return data_df
 
-def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
+def make_data(raw_data:np.array, istrain:bool, fft_df, ie, nn_fs):
     '''
     rawデータを投げるとDataFrameに変換する
     trainデータの場合は速度列も追加して返す'''
@@ -84,6 +83,10 @@ def make_data(raw_data:np.array, istrain:bool, fft_df, ie):
         
         timepoint_df = pd.concat([timepoint_df, tmp_df])
     
+    # nnから抽出した特徴量を結合
+    trial_df = pd.merge(trial_df, nn_fs, on=['sid', 'trial'])
+    timepoint_df = pd.merge(timepoint_df, nn_fs, on=['sid', 'trial'])
+
     # sidのonehot encoding
     sid, cl = process_core.onehot(timepoint_df['sid'])
     cl = ['sid_'+i for i in cl]
@@ -115,19 +118,21 @@ if __name__ == '__main__':
         print('making iemg data')
         iemg.dump_iemg()
     
+    tr_nn_fs, te_nn_fs = extract_from_nn.extract_from_nn()
+
     # train data
     train_raw = sio.loadmat(config.train_raw_path)
     fft_df = pickle.load(open(config.fft_train_path, 'rb'))
     ie = pickle.load(open(config.iemg_train_path, 'rb'))
 
-    tr_trial_df, tr_timepoint_df = make_data(train_raw, True, fft_df, ie)
+    tr_trial_df, tr_timepoint_df = make_data(train_raw, True, fft_df, ie, tr_nn_fs)
     
     # test data
     test_raw = sio.loadmat(config.test_raw_path)
     fft_df = pickle.load(open(config.fft_test_path, 'rb'))
     ie = pickle.load(open(config.iemg_test_path, 'rb'))
 
-    te_trial_df, te_timepoint_df = make_data(test_raw, False, fft_df, ie)
+    te_trial_df, te_timepoint_df = make_data(test_raw, False, fft_df, ie, te_nn_fs)
 
     if compress_fft:
         cols = [c for c in tr_timepoint_df.columns if c[4:8]=='_fft' and c[-4:]!='dens']
