@@ -17,23 +17,28 @@ time = now.strftime('%m%d_%H:%M:%S')
 class model_stack_cnn(nn.Module):
     def __init__(self, params):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv1d(params['in_channels'], 30, 30)
-        )
+        self.conv = nn.Conv1d(params['in_channels'], 30, 30)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(params['p_dropout'])
+        self.linear = nn.Linear(30, 30)
     
     def forward(self, x):
-        x = self.net(x)
-        x = x.reshape(x.shape[:2])
-        # print(x.shape)
+        x = self.conv(x)
+
+        # x = self.dropout(x)
+        # x = self.relu(x)
+
+        # x = x.reshape(x.shape[:2])
+        # x = self.linear(x)
         return x
 
 class stack():
     def __init__(self, params):
         self.stack_models = {
-            'lgb': 'lgb_1013_16:02:36',
-            'cnn': 'cnn_1013_15:49:46',
-            'lstm': 'lstm_1013_16:03:15',
-            # 'cnn_lstm': 'cnn-lstm_1012_17:41:42',
+            'lgb': 'lgb_1014_14:55:03',
+            'cnn': 'cnn_1014_18:40:35',
+            'lstm': 'lstm_1014_14:58:51',
+            # 'cnn_lstm': 'cnn-lstm_1013_19:26:48',
         }
 
         self.params = params
@@ -48,7 +53,7 @@ class stack():
     def dataset(self):
         '''
         {target: [(tr_trials,30,n_models)*2, (te_trials,30,n_models)]}'''
-        train_preds = {k: pickle.load(open(os.path.join(config.exdir, self.stack_models[k], 'train_pred.pkl'), 'rb')) for k in self.stack_models.keys()}
+        train_preds = {k: pickle.load(open(os.path.join(config.exdir, self.stack_models[k], 'train_cv_pred.pkl'), 'rb')) for k in self.stack_models.keys()}
         test_preds = {k: pickle.load(open(os.path.join(config.exdir, self.stack_models[k], 'test_pred.pkl'), 'rb')) for k in self.stack_models.keys()}
 
         self.data = dict()
@@ -73,7 +78,11 @@ class stack():
 
             tr_x, tr_y, te_x = self.data[target]
 
-            trainer = model_torch_base.holdout_training_ndarray(self.modeler_class, self.params, self.score_fn)
+            if self.params['use_cv']:
+                trainer = model_torch_base.cv_training_ndarray(self.modeler_class, self.params, self.score_fn)
+            else:
+                trainer = model_torch_base.holdout_training_ndarray(self.modeler_class, self.params, self.score_fn)
+                
             tr_pred, te_pred = trainer.main(tr_x, tr_y, te_x)
 
             self.train_pred[target+'_pred'] = tr_pred
