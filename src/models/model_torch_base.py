@@ -221,7 +221,9 @@ class cv_training_ndarray():
         '''
         trainデータ、特徴量の列名リスト、ターゲットの列名、テストデータを投げると学習と結果出力を行いtestデータの予測値を返す'''
         # valid分割
-        tr_x, va_x, tr_y, va_y = train_test_split(x, y, test_size=0.2, random_state=self.params['rand'])
+        tr_idx, va_idx = train_test_split([i for i in range(x.shape[0])], test_size=0.2, random_state=self.params['rand'])
+        tr_x, tr_y = x[tr_idx], y[tr_idx]
+        va_x, va_y = x[va_idx], y[va_idx]
 
         # fold分割
         kf = KFold(n_splits=4, shuffle=True, random_state=self.params['rand'])
@@ -259,6 +261,29 @@ class cv_training_ndarray():
         # testデータの予測
         train_pred = self.predict(x)
         test_pred = self.predict(test)
+        
+        # 記録用dataframe
+        # 列は(fold, fold0~3の予測値, 全体の予測値, 学習に用いられていないモデルでの予測値)
+        tmp = pickle.load(open(config.train_path, 'rb'))[['sid', 'trial', 'timepoint']+config.target_name]
+
+        result = np.full((len(tmp), 7), 999, dtype=np.float64)
+        result[:, 5] = train_pred
+
+        va_index = [30*i+j for i in va_idx for j in range(30)]
+        result[va_index, 6] = train_pred[va_index]  # validationは全体の予測値で埋める
+
+        l = np.array([i for i in range(x.shape[0])])
+        tr_index = l[tr_idx]    # validationを除いたindex
+
+        for i, idx in enumerate(kf.split(tr_index)):
+            es_idx = [30*i+j for i in tr_index[idx[1]] for j in range(30)]
+            result[es_idx, 0] = i # foldの記録
+            result[:, i+1] = self.modelers[i].predict(x)
+            result[es_idx, 6] = result[es_idx, i+1]
+        
+        self.cv_pred = pd.DataFrame(result, columns=['fold'] + ['fold'+str(i)+'_pred' for i in range(4)] + ['mean_pred', 'valid_pred'])
+        self.cv_pred = self.cv_pred.join(tmp)
+
         return train_pred, test_pred
 
 class vel_prediction_ndarray():
@@ -333,6 +358,22 @@ class vel_prediction_ndarray():
             pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
 
+            if self.params['use_cv']:   # foldごとの予測値保存
+                cv_pred = [tn.cv_pred for tn in self.trainer_array]
+                cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
+
+                dic = {
+                    'vel_x': cv_pred[0]['vel_x'],
+                    'vel_x_pred': cv_pred[0]['valid_pred'],
+                    'vel_y': cv_pred[1]['vel_y'],
+                    'vel_y_pred': cv_pred[1]['valid_pred'],
+                    'vel_z': cv_pred[2]['vel_z'],
+                    'vel_z_pred': cv_pred[2]['valid_pred'],
+                }
+                cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
+
+                pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
+        
         if savetrainer:
             pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
             print('model saved')

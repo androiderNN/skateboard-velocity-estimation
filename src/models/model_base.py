@@ -205,7 +205,7 @@ class holdout_training():
             train, test = process_core.normalize(train, test, cols)
         
         # データ分割
-        index = get_tr_va_index(train, rand=self.params['rand']) if index is None else index
+        index = get_tr_va_index(train, es_size=0.2, rand=self.params['rand']) if index is None else index
         tr_x, tr_y = train.loc[index[0], col], train.loc[index[0], target]
         es_x, es_y = train.loc[index[1], col], train.loc[index[1], target]
 
@@ -263,10 +263,10 @@ class cv_training():
         # fold分割
         index_array = get_kfold_index(tr, n_fold=4, rand=self.params['rand'])
 
-        for i, index in enumerate(index_array):
+        for i, idx in enumerate(index_array):
             print('\nFold', i+1)
-            tr_x, tr_y = tr.loc[index[0], col], tr.loc[index[0], target]    # fold内での学習用データ
-            es_x, es_y = tr.loc[index[1], col], tr.loc[index[1], target]    # fold内でのearly stopping用データ
+            tr_x, tr_y = tr.loc[idx[0], col], tr.loc[idx[0], target]    # fold内での学習用データ
+            es_x, es_y = tr.loc[idx[1], col], tr.loc[idx[1], target]    # fold内でのearly stopping用データ
 
             # 学習
             modeler = self.mdr(params=self.params['modeler_params'], rand=self.params['rand'])
@@ -296,6 +296,25 @@ class cv_training():
         # testデータの予測
         train_pred = self.predict(train[col])
         test_pred = self.predict(test[col])
+
+        # 記録用dataframe
+        # 列は(fold, fold0~3の予測値, 全体の予測値, 学習に用いられていないモデルでの予測値)
+        result = np.full((len(train), 7), 999, dtype=np.float64)
+        result[:, 5] = train_pred
+        result[index[1], 6] = train_pred[index[1]]  # validationは全体の予測値で埋める
+
+        l = np.array([i for i in range(len(train))])
+        tr_index = l[index[0]]    # validationを除いたindex
+
+        for i, idx in enumerate(index_array):
+            es_idx = [j for k, j in enumerate(tr_index) if idx[1][k]]  # foldのindexはvalidation分割後のboolean indexなのでindexを使ってesのindexを取得
+            result[es_idx, 0] = i # foldの記録
+            result[:, i+1] = self.modelers[i].predict(train[col])
+            result[es_idx, 6] = result[es_idx, i+1]
+        
+        self.cv_pred = pd.DataFrame(result, columns=['fold'] + ['fold'+str(i)+'_pred' for i in range(4)] + ['mean_pred', 'valid_pred'])
+        self.cv_pred = self.cv_pred.join(train[['sid', 'trial', 'timepoint', target]])
+
         return train_pred, test_pred
 
 class vel_prediction():
@@ -391,6 +410,22 @@ class vel_prediction():
             pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
             pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
             pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+            
+            if self.params['use_cv']:   # foldごとの予測値保存
+                cv_pred = [tn.cv_pred for tn in self.trainer_array]
+                cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
+
+                dic = {
+                    'vel_x': cv_pred[0]['vel_x'],
+                    'vel_x_pred': cv_pred[0]['valid_pred'],
+                    'vel_y': cv_pred[1]['vel_y'],
+                    'vel_y_pred': cv_pred[1]['valid_pred'],
+                    'vel_z': cv_pred[2]['vel_z'],
+                    'vel_z_pred': cv_pred[2]['valid_pred'],
+                }
+                cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
+
+                pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
         
         if savetrainer:
             pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
