@@ -122,7 +122,7 @@ class modeler_torch(model_base.modeler_base):
         trainとestopのdatasetを入力すると学習とログ出力を行う'''
         self.model = self.model_class(self.params['model_params'])
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.params['lr'])
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, 0.98)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, 0.99)
 
         # データローダー
         train_dataloader = DataLoader(train_dataset, batch_size=self.params['batch_size'], shuffle=True)
@@ -292,7 +292,6 @@ class vel_prediction_ndarray():
 
         self.modeler = modeler
         self.expath = None
-        self.exornot = False
 
         self.trainer_array = list()
         self.train_pred = pickle.load(open(config.train_path, 'rb')).loc[:, ['sid', 'trial', 'timepoint', 'vel_x', 'vel_y', 'vel_z']]
@@ -348,37 +347,34 @@ class vel_prediction_ndarray():
         self.expath = model_base.makeexportdir(self.params['modeltype'], time, self.params['use_cv'])
 
         if self.params['verbose']:
-            self.exornot = input('\n出力しますか(y/n)')=='y'
-            savetrainer = input('モデルの保存(y/n)')=='y'
+            if input('\n出力しますか(y/n)')=='y':
+                os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
+                model_base.make_submission(self.test_pred.copy(), self.expath)
+                pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
+                pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
+                pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
 
-        if self.exornot:
-            os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
-            model_base.make_submission(self.test_pred.copy(), self.expath)
-            pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
-            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
-            pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+                if self.params['use_cv']:   # foldごとの予測値保存
+                    cv_pred = [tn.cv_pred for tn in self.trainer_array]
+                    cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
 
-            if self.params['use_cv']:   # foldごとの予測値保存
-                cv_pred = [tn.cv_pred for tn in self.trainer_array]
-                cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
+                    dic = {
+                        'vel_x': cv_pred[0]['vel_x'],
+                        'vel_x_pred': cv_pred[0]['valid_pred'],
+                        'vel_y': cv_pred[1]['vel_y'],
+                        'vel_y_pred': cv_pred[1]['valid_pred'],
+                        'vel_z': cv_pred[2]['vel_z'],
+                        'vel_z_pred': cv_pred[2]['valid_pred'],
+                    }
+                    cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
 
-                dic = {
-                    'vel_x': cv_pred[0]['vel_x'],
-                    'vel_x_pred': cv_pred[0]['valid_pred'],
-                    'vel_y': cv_pred[1]['vel_y'],
-                    'vel_y_pred': cv_pred[1]['valid_pred'],
-                    'vel_z': cv_pred[2]['vel_z'],
-                    'vel_z_pred': cv_pred[2]['valid_pred'],
-                }
-                cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
+                    if self.params['smoothing'] == 'ma':
+                        cv_pred_df = model_base.smoothing_movingaverage(cv_pred_df, ksize=5)
+                    elif self.params['smoothing'] == 'lp':
+                        cv_pred_df = model_base.smoothing_lowpass(cv_pred_df, lowcut=1)
 
-                if self.params['smoothing'] == 'ma':
-                    cv_pred_df = model_base.smoothing_movingaverage(cv_pred_df, ksize=5)
-                elif self.params['smoothing'] == 'lp':
-                    cv_pred_df = model_base.smoothing_lowpass(cv_pred_df, lowcut=1)
-
-                pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
-        
-        if savetrainer:
-            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
-            print('model saved')
+                    pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
+            
+                if input('モデルの保存(y/n)')=='y':
+                    pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
+                    print('model saved')

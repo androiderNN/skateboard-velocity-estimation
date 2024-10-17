@@ -402,32 +402,29 @@ class vel_prediction():
         #保存
         self.expath = makeexportdir(self.params['modeltype'], time, self.params['use_cv'])
         if self.params['verbose']:
-            exornot = input('\n予測値の出力(y/n)')=='y'
-            savetrainer = input('モデルの保存(y/n)')=='y'
+            if input('\n予測値の出力(y/n)')=='y':
+                os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
+                make_submission(self.test_pred.copy(), self.expath)
+                pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
+                pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
+                pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+                
+                if self.params['use_cv']:   # foldごとの予測値保存
+                    cv_pred = [tn.cv_pred for tn in self.trainer_array]
+                    cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
 
-        if exornot:
-            os.mkdir(self.expath)   # 出力日時記載のフォルダ作成
-            make_submission(self.test_pred.copy(), self.expath)
-            pickle.dump(self.train_pred, open(os.path.join(self.expath, 'train_pred.pkl'), 'wb'))
-            pickle.dump(self.test_pred, open(os.path.join(self.expath, 'test_pred.pkl'), 'wb'))
-            pickle.dump(self.params, open(os.path.join(self.expath, 'params.pkl'), 'wb'))
+                    dic = {
+                        'vel_x': cv_pred[0]['vel_x'],
+                        'vel_x_pred': cv_pred[0]['valid_pred'],
+                        'vel_y': cv_pred[1]['vel_y'],
+                        'vel_y_pred': cv_pred[1]['valid_pred'],
+                        'vel_z': cv_pred[2]['vel_z'],
+                        'vel_z_pred': cv_pred[2]['valid_pred'],
+                    }
+                    cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
+
+                    pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
             
-            if self.params['use_cv']:   # foldごとの予測値保存
-                cv_pred = [tn.cv_pred for tn in self.trainer_array]
-                cv_pred_df = cv_pred[0][['sid', 'trial', 'timepoint']]
-
-                dic = {
-                    'vel_x': cv_pred[0]['vel_x'],
-                    'vel_x_pred': cv_pred[0]['valid_pred'],
-                    'vel_y': cv_pred[1]['vel_y'],
-                    'vel_y_pred': cv_pred[1]['valid_pred'],
-                    'vel_z': cv_pred[2]['vel_z'],
-                    'vel_z_pred': cv_pred[2]['valid_pred'],
-                }
-                cv_pred_df = cv_pred_df.join(pd.DataFrame(dic))
-
-                pickle.dump(cv_pred_df, open(os.path.join(self.expath, 'train_cv_pred.pkl'), 'wb'))
-        
-        if savetrainer:
-            pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
-            print('model saved')
+                if input('モデルの保存(y/n)')=='y':
+                    pickle.dump(self.trainer_array, open(os.path.join(config.saved_model_dir, self.params['modeltype']+'_'+time+'.pkl'), 'wb'))
+                    print('model saved')
