@@ -118,9 +118,9 @@ class cnn2(nn.Module):
         self.conv3 = nn.Conv1d(params['conv2_out'], params['conv3_out'], params['conv3_ksize'], params['conv3_stride'])
         self.conv4 = nn.Conv1d(params['conv3_out'], params['conv4_out'], params['conv4_ksize'], params['conv4_stride'])
 
-        self.pool1 = nn.MaxPool1d(params['pool1_ksize'], padding=params['pool1_padding'])
-        self.pool2 = nn.MaxPool1d(params['pool2_ksize'], padding=params['pool2_padding'])
-        self.pool3 = nn.MaxPool1d(params['pool3_ksize'], padding=params['pool3_padding'])
+        self.pool1 = nn.MaxPool1d(params['pool1_ksize'])
+        self.pool2 = nn.MaxPool1d(params['pool2_ksize'])
+        self.pool3 = nn.MaxPool1d(params['pool3_ksize'])
 
         self.linear = nn.Linear(params['conv4_out'], 30)
 
@@ -130,6 +130,8 @@ class cnn2(nn.Module):
 
         self.dropout = nn.Dropout(params['p_dropout'])
         self.relu = nn.ReLU()
+
+        self.n = params['conv4_out']
 
     def forward(self, x):
         x = self.conv1(x)
@@ -154,7 +156,7 @@ class cnn2(nn.Module):
         x = self.dropout(x)
         x = self.relu(x)
 
-        x = x.reshape((x.shape[0], -1))
+        x = x.reshape((x.shape[0], self.n))
         x = self.linear(x)
         return x
 
