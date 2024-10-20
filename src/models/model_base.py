@@ -153,6 +153,9 @@ def make_submission(test, dirpath):
     予測済のtest dataframeを投げると投稿ファイルを出力する
     jsonの形式に合わせるためintやlistへの変換を行っている
     予測値の列名は"vel_*_pred"'''
+    # dtypeの変換
+    test = test.astype({'sid': int, 'trial': int, 'timepoint': int})
+
     # testの予測値のためXYをいれかえ
     test['vel_x_pred'] = -1*test['vel_x_pred']
     test['vel_y_pred'] = -1*test['vel_y_pred']
