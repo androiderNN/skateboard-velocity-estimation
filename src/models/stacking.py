@@ -1,4 +1,4 @@
-import os, pickle, datetime, json, sys, math
+import os, pickle, datetime, json, sys, math, datetime
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -13,6 +13,38 @@ import model_base, model_torch_base, model_cnn
 
 now = datetime.datetime.now()
 time = now.strftime('%m%d_%H:%M:%S')
+
+def meanstack():
+    stack_ids = [
+        'lgb_1020_12:55:50',
+        'lgb_1020_12:57:17',
+        'lgb_1020_12:58:38',
+        'lgb_1020_13:00:14'
+    ]
+    train_pred = [pickle.load(open(os.path.join(config.exdir, id, 'train_pred.pkl'), 'rb')) for id in stack_ids]
+    test_pred = [pickle.load(open(os.path.join(config.exdir, id, 'test_pred.pkl'), 'rb')) for id in stack_ids]
+
+    tr_col = train_pred[0].columns
+    te_col = test_pred[0].columns
+
+    
+    train_pred = np.array(train_pred).mean(axis=0)
+    train_pred = pd.DataFrame(train_pred, columns=tr_col)
+    test_pred = np.array(test_pred).mean(axis=0)
+    test_pred = pd.DataFrame(test_pred, columns=te_col)
+
+    tr_rmse = model_base.rmse_3d(train_pred)
+    print('\ntrain rmse :', tr_rmse)
+
+    now = datetime.datetime.now()
+    time = now.strftime('%m%d_%H:%M:%S')
+
+    dirpath = model_base.makeexportdir('meanstack', time, False)
+    os.mkdir(dirpath)
+    test_pred = test_pred.astype({'sid': int, 'trial': int, 'timepoint': int})
+    model_base.make_submission(test_pred, dirpath)
+
+    print('finished')
 
 class model_stack_cnn(nn.Module):
     def __init__(self, params):
@@ -35,9 +67,9 @@ class model_stack_cnn(nn.Module):
 class stack():
     def __init__(self, params):
         self.stack_models = {
-            'lgb': 'lgb_1014_14:55:03',
-            'cnn': 'cnn_1014_18:40:35',
-            'lstm': 'lstm_1014_14:58:51',
+            'lgb': 'lgb_1015_07:11:19_cv',
+            'cnn': 'cnn_1015_07:13:48_cv',
+            'lstm': 'lstm_1015_07:55:58_cv',
             # 'cnn_lstm': 'cnn-lstm_1013_19:26:48',
         }
 
@@ -82,7 +114,7 @@ class stack():
                 trainer = model_torch_base.cv_training_ndarray(self.modeler_class, self.params, self.score_fn)
             else:
                 trainer = model_torch_base.holdout_training_ndarray(self.modeler_class, self.params, self.score_fn)
-                
+
             tr_pred, te_pred = trainer.main(tr_x, tr_y, te_x)
 
             self.train_pred[target+'_pred'] = tr_pred
@@ -109,7 +141,7 @@ class stack():
         print('validation rmse :', es_rmse)
 
         # 保存
-        self.expath = model_base.makeexportdir(self.params['modeltype'], time)
+        self.expath = model_base.makeexportdir(self.params['modeltype'], time, self.params['use_cv'])
 
         if self.params['verbose']:
             self.exornot = input('\n出力しますか(y/n)')=='y'
