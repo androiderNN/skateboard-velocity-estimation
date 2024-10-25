@@ -1,6 +1,7 @@
 import os, sys, pickle
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 
 sys.path.append(os.path.dirname(__file__))
 import process_core
@@ -59,7 +60,7 @@ def fft_onVelosityTime(data_myo):
     # 周波数のndarrayをDataFrameに変換
     fft_reshaped = fft.reshape(fft.shape[0], fft.shape[1], -1)   # colとfreqを同一次元に
     fft_reshaped = fft_reshaped.reshape(-1, fft_reshaped.shape[-1])    # trialとtimepointを同一次元に
-    fft_col = [c+'_fft'+str(f) for c in config.feature_name for f in freq]
+    fft_col = ['fft_'+c+'_'+str(f) for c in config.feature_name for f in freq]
 
     fft_df = pd.DataFrame(fft_reshaped, columns=fft_col)
 
@@ -71,8 +72,8 @@ def fft_onVelosityTime(data_myo):
     return fft_df
 
 def dump_fft_df():
-    train = pickle.load(open(config.train_raw_path, 'rb'))
-    test = pickle.load(open(config.test_raw_path, 'rb'))
+    train = sio.loadmat(config.train_raw_path)
+    test = sio.loadmat(config.test_raw_path)
 
     l = list()
     for i in range(4):

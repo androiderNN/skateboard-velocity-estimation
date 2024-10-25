@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 from sklearn.linear_model import LinearRegression
+import scipy.io as sio
 
 sys.path.append(os.path.dirname(__file__))
 import fft
@@ -44,7 +45,7 @@ def pickfromtrial(ie, n):
 
     index = np.array([0] + [int(round((i+1)*1000/(n-1)))-1 for i in range(n-1)])
     ie_tr = ie[:, :, index].reshape(num_trial, -1)
-    ie_tr_col = [c+'_iemgtr_'+str(index[i]+1) for c in config.feature_name for i in range(n)]
+    ie_tr_col = ['iemg_'+c+str(index[i]+1) for c in config.feature_name for i in range(n)]
 
     # ie_tr = np.array([l for l in ie_tr])
     # ie_tr = ie_tr.reshape(-1, ie_tr.shape[2])
@@ -58,7 +59,7 @@ def describeiemg(ie):
     iemgから複数の特徴量を抽出する'''
     # 傾き、決定係数、ピーク数、最大位置、平均
     # features = ['iemg_coef', 'R^2', 'num_peaks', 'peak_posit', 'mean']
-    features = ['iemg_coef', 'R^2', 'peak_posit', 'mean']
+    features = ['iemg_coef', 'iemg_R^2', 'iemg_peakposit', 'iemg_mean']
     tmp = np.zeros(shape=(ie.shape[0], ie.shape[1], len(features)), dtype=np.float32)
 
     regressor = LinearRegression()
@@ -139,8 +140,8 @@ def iemg(data_myo, ie):
     return df
 
 def dump_iemg():
-    train = pickle.load(open(config.train_raw_path, 'rb'))
-    test = pickle.load(open(config.test_raw_path, 'rb'))
+    train = sio.loadmat(config.train_raw_path)
+    test = sio.loadmat(config.test_raw_path)
 
     l = list()
     for i in range(4):
