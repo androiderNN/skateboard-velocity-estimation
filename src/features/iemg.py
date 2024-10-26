@@ -79,7 +79,7 @@ def describeiemg(ie):
     tmp = tmp.reshape((tmp.shape[0], -1))   # colと特徴量を同一次元に
     # tmp = np.array([[l]*30 for l in tmp]) # 30回分増幅
     # tmp = tmp.reshape((-1, tmp.shape[2]))
-    df_col = [f+'_'+c for f in config.feature_name for c in features]
+    df_col = [c+'_'+f for f in config.feature_name for c in features]
     df = pd.DataFrame(tmp, columns=df_col)
     df['trial'] = [t+1 for t in range(ie.shape[0])]
     return df
@@ -106,7 +106,7 @@ def pickfortimepoint(ie, n, m):
     ie_ti = ie[:,:,iemg_index]
     ie_ti = ie_ti.transpose(0,2,1,3)
     ie_ti = ie_ti.reshape(num_trial*30, -1)
-    ie_ti_col = [c+'_iemgti_'+str(i) for c in config.feature_name for i in iemg_index[0]]
+    ie_ti_col = ['iemgti_'+c+'_'+str(i) for c in config.feature_name for i in iemg_index[0]]
 
     df = pd.DataFrame(ie_ti, columns=ie_ti_col)
     df[['trial', 'timepoint']] = [[tr+1, ti] for tr in range(num_trial) for ti in range(30)]

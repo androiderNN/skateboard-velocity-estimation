@@ -60,7 +60,7 @@ def fft_onVelosityTime(data_myo):
     # 周波数のndarrayをDataFrameに変換
     fft_reshaped = fft.reshape(fft.shape[0], fft.shape[1], -1)   # colとfreqを同一次元に
     fft_reshaped = fft_reshaped.reshape(-1, fft_reshaped.shape[-1])    # trialとtimepointを同一次元に
-    fft_col = ['fft_'+c+'_'+str(f) for c in config.feature_name for f in freq]
+    fft_col = ['fft_'+c+'_' +str(f) for c in config.feature_name for f in freq]
 
     fft_df = pd.DataFrame(fft_reshaped, columns=fft_col)
 
