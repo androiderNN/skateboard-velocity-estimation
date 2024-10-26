@@ -24,12 +24,15 @@ def compress(train, test, cols, n_components, colname='fft'):
     model = PCA(n_components)
     model.fit(train[cols])
 
+    l = list()
+
     for df in [train, test]:
         compressed = model.transform(df[cols])
         df.drop(columns=cols, inplace=True)
-        df = pd.concat([df, pd.DataFrame(compressed, columns=[colname+'_comp_'+str(i) for i in range(n_components)])], axis=1)
+        l.append(pd.concat([df, pd.DataFrame(compressed, columns=[colname+'_comp_'+str(i) for i in range(n_components)])], axis=1))
 
     # print(pd.DataFrame(model.explained_variance_ratio_).cumsum())
+    return l
 
 def normalize(train, test, cols):
     mean = train[cols].mean()

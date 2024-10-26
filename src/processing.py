@@ -135,8 +135,8 @@ if __name__ == '__main__':
     te_trial_df, te_timepoint_df = make_data(test_raw, False, fft_df, ie, te_nn_fs)
 
     if compress_fft:
-        cols = [c for c in tr_timepoint_df.columns if c[4:8]=='_fft' and c[-4:]!='dens']
-        process_core.compress(tr_timepoint_df, te_timepoint_df, cols, n_components=100)
+        cols = [c for c in tr_timepoint_df.columns if c[:4]=='fft_' and c[4:8]!='dens']
+        tr_timepoint_df, te_timepoint_df = process_core.compress(tr_timepoint_df, te_timepoint_df, cols, n_components=100)
 
     # dataframe保存
     pickle.dump(tr_trial_df, open(config.train_trial_path, 'wb'))
