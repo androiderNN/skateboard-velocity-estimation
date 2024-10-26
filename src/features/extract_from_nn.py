@@ -14,7 +14,7 @@ import model_torch_base
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def extract_cnn():
-    id = 'cnn_1014_14:13:42'
+    id = 'cnn_1026_23:04:15'
     trainers = pickle.load(open(os.path.join(config.saved_model_dir, id+'.pkl'), 'rb'))
 
     train = sio.loadmat(config.train_raw_path)
@@ -22,6 +22,9 @@ def extract_cnn():
 
     train_myo = model_torch_base.myo_processor(train, 5)
     test_myo = model_torch_base.myo_processor(test, 5)
+
+    train_myo = train_myo[:,:,[i*4 for i in range(250)]]
+    test_myo = test_myo[:,:,[i*4 for i in range(250)]]
 
     tr_features, te_features = list(), list()
 
