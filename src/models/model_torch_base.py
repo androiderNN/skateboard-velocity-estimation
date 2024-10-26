@@ -23,8 +23,6 @@ def myo_processor(raw_data, lowcut=999):
     myo = np.array([t for s in range(1,5) for t in raw_data[str(s).zfill(4)][0,0][0]])   # 筋電位データのみ抽出 (12**, 16, 1000)
     myo = abs(myo)
 
-    myo = myo / myo.max(axis=2).max(axis=0)[np.newaxis,:,np.newaxis]
-
     if lowcut < 999:    # lowcutが999未満のときフィルタリング
         myo = np.array([iemg.apply_filter(t, lowcut) for t in myo])
     
