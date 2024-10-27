@@ -29,7 +29,7 @@ class simplernn(nn.Module):
 class gru(nn.Module):
     def __init__(self, params):
         super().__init__()
-        self.rnn = nn.GRU(params['input_size'], params['hidden_size'])
+        self.rnn = nn.GRU(params['input_size'], params['hidden_size'], num_layers=params['num_layers'], dropout=params['dropout'], bidirectional=params['bidirectional'])
         self.dropout = nn.Dropout(p=params['p_dropout'])
         self.fc = nn.Linear(params['hidden_size'], 1)
 
@@ -42,19 +42,12 @@ class gru(nn.Module):
 class lstm(nn.Module):
     def __init__(self, params):
         super().__init__()
-        self.rnn = nn.LSTM(params['input_size'], params['hidden_size'], num_layers=params['num_layers'], dropout=params['dropout'])
+        self.rnn = nn.LSTM(params['input_size'], params['hidden_size'], num_layers=params['num_layers'], dropout=params['dropout'], bidirectional=params['bidirectional'])
         self.dropout = nn.Dropout(p=params['p_dropout'])
-        self.fc = nn.Linear(params['hidden_size'], 1)
-        # self.bn = nn.BatchNorm2d(30)
+        self.fc = nn.Linear(params['hidden_size']*(1+params['bidirectional']), 1)
 
     def forward(self, x):
         x, h = self.rnn(x)
-
-        # shape = x.shape
-        # x = x.reshape((shape[0], shape[1], shape[2], 1))   # batch norm 2dに入力するためreshape
-        # x = self.bn(x)
-        # x = x.reshape(shape)
-
         x = self.dropout(x)
         x = self.fc(x)
         return x
@@ -123,6 +116,15 @@ class modeler_rnn(model_torch_base.modeler_torch):
         return pred
 
 if __name__=='__main__':
+    model_params = {
+        'input_size': None,
+        'hidden_size': 50,
+        'p_dropout': 0.7,
+        'num_layers': 2,
+        'dropout':0.5,
+        'bidirectional': True
+    }
+
     params = {
         'modeltype': 'lstm',
         'rand': 0,
@@ -134,11 +136,11 @@ if __name__=='__main__':
         'modeler_params': {
             'model_class': lstm,
             'num_epoch': 200,
-            'estop_epoch': 20,
+            'estop_epoch': 30,
             'batch_size': 10,
             'lr': 1e-3,
             'verbose': False,
-            'model_params': {'input_size': None, 'hidden_size': 50, 'p_dropout': 0.7, 'num_layers': 2, 'dropout':0.7}
+            'model_params': model_params
         }
     }
 
